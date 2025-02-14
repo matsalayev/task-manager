@@ -1,6 +1,7 @@
 package tm.generators
 
 import org.scalacheck.Gen
+
 import tm.Language
 import tm.domain._
 import tm.domain.enums.Gender

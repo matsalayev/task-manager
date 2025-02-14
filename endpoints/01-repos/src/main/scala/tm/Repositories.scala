@@ -3,6 +3,7 @@ package tm
 import cats.effect.Async
 import cats.effect.Resource
 import skunk.Session
+
 import tm.repositories._
 
 case class Repositories[F[_]](
@@ -13,7 +14,7 @@ case class Repositories[F[_]](
     employeeRepository: EmployeeRepository[F],
     corporationsRepository: CorporationsRepository[F],
     projectsRepository: ProjectsRepository[F],
-    tasksRepository: TasksRepository[F]
+    tasksRepository: TasksRepository[F],
   )
 
 object Repositories {
@@ -29,6 +30,6 @@ object Repositories {
       employeeRepository = EmployeeRepository.make[F],
       corporationsRepository = CorporationsRepository.make[F],
       projectsRepository = ProjectsRepository.make[F],
-      tasksRepository = TasksRepository.make[F]
+      tasksRepository = TasksRepository.make[F],
     )
 }

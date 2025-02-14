@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.Resource
 import cats.implicits.catsSyntaxOptionId
 import skunk.Session
+
 import tm.Language
 import tm.database.DBSuite
 import tm.generators.Generators

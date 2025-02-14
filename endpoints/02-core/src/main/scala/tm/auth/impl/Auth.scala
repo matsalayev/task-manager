@@ -13,6 +13,8 @@ import io.circe.Encoder
 import org.http4s.Request
 import org.typelevel.log4cats.Logger
 import pdi.jwt.JwtAlgorithm
+import tsec.passwordhashers.jca.SCrypt
+
 import tm.Phone
 import tm.auth.AuthConfig.UserAuthConfig
 import tm.auth.utils.AuthMiddleware
@@ -28,7 +30,6 @@ import tm.exception.AError.AuthError.PasswordDoesNotMatch
 import tm.support.redis.RedisClient
 import tm.syntax.all.circeSyntaxDecoderOps
 import tm.syntax.refined.commonSyntaxAutoUnwrapV
-import tsec.passwordhashers.jca.SCrypt
 
 trait Auth[F[_], A] {
   def login(credentials: Credentials): F[AuthTokens]

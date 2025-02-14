@@ -2,6 +2,7 @@ package tm.repositories.sql
 
 import skunk._
 import skunk.implicits._
+
 import tm.domain.AssetId
 import tm.domain.asset.Asset
 import tm.support.skunk.Sql

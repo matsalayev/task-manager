@@ -4,6 +4,7 @@ import cats.data.OptionT
 import cats.effect.Async
 import cats.effect.std.Random
 import org.typelevel.log4cats.Logger
+
 import tm.auth.AuthConfig
 import tm.auth.impl.Auth
 import tm.domain.auth.AccessCredentials
@@ -41,7 +42,9 @@ object Services {
       telegramService = TelegramService.make[F](
         telegramClient,
         repositories.telegramRepository,
-        repositories.employeeRepository
+        repositories.employeeRepository,
+        repositories.corporationsRepository,
+        repositories.projectsRepository,
       ),
     )
   }

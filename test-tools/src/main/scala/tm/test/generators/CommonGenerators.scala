@@ -11,6 +11,7 @@ import eu.timepit.refined.types.all.NonNegDouble
 import eu.timepit.refined.types.numeric.NonNegInt
 import eu.timepit.refined.types.numeric.NonNegLong
 import org.scalacheck.Gen
+
 import tm.Phone
 import tm.syntax.refined._
 

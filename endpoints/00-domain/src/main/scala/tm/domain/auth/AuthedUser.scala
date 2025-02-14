@@ -2,6 +2,7 @@ package tm.domain.auth
 
 import io.circe.generic.JsonCodec
 import io.circe.refined._
+
 import tm.Phone
 import tm.domain.PersonId
 import tm.domain.enums.Role

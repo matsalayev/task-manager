@@ -1,6 +1,7 @@
 package tm.generators
 
 import org.scalacheck.Gen
+
 import tm.repositories.dto
 import tm.syntax.refined._
 

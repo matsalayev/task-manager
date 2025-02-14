@@ -6,6 +6,7 @@ import java.time.ZonedDateTime
 import cats.implicits.catsSyntaxOptionId
 import eu.timepit.refined.types.string.NonEmptyString
 import io.scalaland.chimney.dsl.TransformationOps
+
 import tm.domain.PersonId
 import tm.domain.enums.Gender
 

@@ -4,6 +4,7 @@ import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
 import skunk.implicits._
 
+import tm.domain.CorporateId
 import tm.domain.ProjectId
 import tm.domain.project.Project
 import tm.support.skunk.Sql
@@ -17,6 +18,9 @@ private[repositories] object ProjectsSql extends Sql[ProjectId] {
 
   val insert: Command[Project] =
     sql"""INSERT INTO projects VALUES ($codec)""".command
+
+  val getAll: Query[CorporateId, Project] =
+    sql"""SELECT * FROM projects WHERE corporate_id = ${CorporationsSql.id}""".query(codec)
 
   val findById: Query[ProjectId, Project] =
     sql"""SELECT * FROM projects WHERE id = $id LIMIT 1""".query(codec)

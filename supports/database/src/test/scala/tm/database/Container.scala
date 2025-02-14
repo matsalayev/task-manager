@@ -8,9 +8,10 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.noop.NoOpLogger
+import weaver.scalacheck.CheckConfig
+
 import tm.support.database.Migrations
 import tm.support.database.MigrationsConfig
-import weaver.scalacheck.CheckConfig
 
 trait Container {
   def schemaName: String

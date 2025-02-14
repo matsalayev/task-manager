@@ -7,6 +7,7 @@ import cats.effect.Sync
 import cats.implicits.catsSyntaxApplicativeId
 import cats.implicits.toFunctorOps
 import io.circe.Encoder
+
 import tm.syntax.all.genericSyntaxGenericTypeOps
 
 object RedisClientMock {

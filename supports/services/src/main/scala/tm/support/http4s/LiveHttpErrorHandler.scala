@@ -9,6 +9,7 @@ import org.http4s.MalformedMessageBodyFailure
 import org.http4s.Response
 import org.http4s.dsl.Http4sDsl
 import org.typelevel.log4cats.Logger
+
 import tm.Mode
 import tm.Mode.Production
 import tm.exception.AError

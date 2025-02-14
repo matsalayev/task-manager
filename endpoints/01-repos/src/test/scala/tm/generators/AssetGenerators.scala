@@ -1,6 +1,7 @@
 package tm.generators
 
 import org.scalacheck.Gen
+
 import tm.domain.asset.Asset
 import tm.syntax.refined._
 

@@ -84,7 +84,7 @@ CREATE TABLE corporations (
   asset_id UUID NULL REFERENCES assets (id)
 );
 
-CREATE TABLE ranks (
+CREATE TABLE specialties (
   id UUID PRIMARY KEY,
   name VARCHAR NOT NULL
 );
@@ -94,7 +94,7 @@ CREATE TABLE employees (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL,
   person_id UUID NOT NULL REFERENCES people (id),
   corporate_id UUID NOT NULL REFERENCES corporations (id),
-  rank_id UUID NOT NULL REFERENCES ranks (id),
+  specialty_id UUID NOT NULL REFERENCES specialties (id),
   asset_id UUID NULL REFERENCES assets (id),
   phone VARCHAR NOT NULL UNIQUE
 );
@@ -114,7 +114,7 @@ CREATE TABLE tags (
   color VARCHAR NOT NULL
 );
 
-CREATE TABLE task (
+CREATE TABLE tasks (
   id UUID PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL,
   created_by UUID NOT NULL REFERENCES employees (id),
@@ -175,13 +175,13 @@ VALUES (
   '832a34d2-6d28-4778-85d4-ed18e42b3b01'
 );
 
-INSERT INTO ranks (id, name)
+INSERT INTO specialties (id, name)
 VALUES (
   'e68c531c-332d-4f73-9745-ba2c600b0031',
-  'junior'
+  'Backend Developer'
 );
 
-INSERT INTO employees (id, created_at, person_id, corporate_id, rank_id, phone)
+INSERT INTO employees (id, created_at, person_id, corporate_id, specialty_id, phone)
 VALUES (
   '4add61d1-66f3-4339-8775-67515d86f489',
   now(),

@@ -13,6 +13,7 @@ import io.estatico.newtype.macros.newtype
 import pureconfig.BasicReaders.finiteDurationConfigReader
 import pureconfig.ConfigReader
 import pureconfig.error.FailureReason
+
 import tm.syntax.refined.commonSyntaxAutoRefineV
 import tm.utils.uuid
 
@@ -33,7 +34,7 @@ package object domain {
   @newtype case class EmployeeId(value: UUID)
 
   @derive(eqv, show, uuid)
-  @newtype case class RankId(value: UUID)
+  @newtype case class SpecialtyId(value: UUID)
 
   @derive(eqv, show, uuid)
   @newtype case class ProjectId(value: UUID)

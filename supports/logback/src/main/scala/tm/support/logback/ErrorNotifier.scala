@@ -3,6 +3,7 @@ package tm.support.logback
 import cats.effect.Sync
 import cats.implicits._
 import org.typelevel.log4cats.Logger
+
 import tm.support.logback.requests.SendError
 import tm.support.sttp.SttpBackends
 import tm.support.sttp.SttpClient

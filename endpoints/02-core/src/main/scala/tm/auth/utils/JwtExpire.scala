@@ -3,6 +3,7 @@ package tm.auth.utils
 import cats.effect.Sync
 import cats.implicits.toFunctorOps
 import pdi.jwt.JwtClaim
+
 import tm.domain.TokenExpiration
 
 trait JwtExpire[F[_]] {

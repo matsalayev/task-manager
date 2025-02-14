@@ -3,6 +3,7 @@ package tm.repositories.sql
 import skunk._
 import skunk.codec.all.date
 import skunk.implicits._
+
 import tm.domain.PersonId
 import tm.repositories.dto
 import tm.support.skunk.Sql

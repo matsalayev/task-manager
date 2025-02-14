@@ -4,6 +4,7 @@ import io.circe.Json
 import sttp.model.HeaderNames
 import sttp.model.MediaType
 import sttp.model.Method
+
 import tm.support.sttp.SttpRequest
 
 case class SendError(error: String)

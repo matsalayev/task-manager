@@ -7,6 +7,7 @@ import org.typelevel.log4cats.Logger
 import skunk._
 import skunk.codec.all._
 import skunk.implicits._
+
 import tm.syntax.refined.commonSyntaxAutoUnwrapV
 
 trait SkunkSyntax {

@@ -7,6 +7,7 @@ import cats.effect.Temporal
 import cats.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
 import tm.support.jobs._
 case class JobsModule[F[_]: Async: Parallel: Logger: Temporal](
     env: JobsEnvironment[F]

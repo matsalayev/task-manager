@@ -8,6 +8,7 @@ import dev.profunktor.auth.jwt.jwtEncode
 import io.circe.Encoder
 import pdi.jwt.JwtAlgorithm
 import pdi.jwt.JwtClaim
+
 import tm.auth.AuthConfig.UserAuthConfig
 import tm.domain.auth.AuthTokens
 import tm.effects.GenUUID

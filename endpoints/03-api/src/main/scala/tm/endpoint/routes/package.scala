@@ -2,6 +2,7 @@ package tm.endpoint
 
 import org.http4s.AuthedRequest
 import org.http4s.Request
+
 import tm.domain.auth.AuthedUser
 import tm.domain.enums.Role
 

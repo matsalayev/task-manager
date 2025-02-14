@@ -4,6 +4,7 @@ import cats.effect.Resource
 import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
 
+import tm.domain.CorporateId
 import tm.domain.ProjectId
 import tm.domain.project.Project
 import tm.repositories.sql.ProjectsSql
@@ -11,6 +12,7 @@ import tm.support.skunk.syntax.all._
 
 trait ProjectsRepository[F[_]] {
   def create(project: Project): F[Unit]
+  def getAll(corporateId: CorporateId): F[List[Project]]
   def findById(projectId: ProjectId): F[Option[Project]]
   def findByName(name: NonEmptyString): F[Option[Project]]
   def update(project: Project): F[Unit]
@@ -24,6 +26,9 @@ object ProjectsRepository {
     ): ProjectsRepository[F] = new ProjectsRepository[F] {
     override def create(project: Project): F[Unit] =
       ProjectsSql.insert.execute(project)
+
+    override def getAll(corporateId: CorporateId): F[List[Project]] =
+      ProjectsSql.getAll.queryList(corporateId)
 
     override def findById(projectId: ProjectId): F[Option[Project]] =
       ProjectsSql.findById.queryOption(projectId)

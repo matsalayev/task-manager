@@ -8,6 +8,7 @@ import org.typelevel.log4cats.Logger
 import skunk.Session
 import skunk.SessionPool
 import skunk.util.Typer
+
 import tm.support.skunk.syntax.all.skunkSyntaxConnectionOps
 import tm.syntax.refined.commonSyntaxAutoUnwrapV
 

@@ -3,6 +3,7 @@ package tm.repositories.sql
 import skunk._
 import skunk.codec.all.int8
 import skunk.implicits._
+
 import tm.domain.PersonId
 import tm.domain.telegram.BotUser
 import tm.support.skunk.Sql

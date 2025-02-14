@@ -9,6 +9,7 @@ import org.http4s.HttpRoutes
 import org.http4s.circe.JsonDecoder
 import org.http4s.server.Router
 import org.typelevel.log4cats.Logger
+
 import tm.domain.auth.AuthedUser
 import tm.endpoint.routes._
 import tm.http.Environment

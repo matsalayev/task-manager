@@ -8,6 +8,7 @@ import skunk.Codec
 import skunk.codec.all.timestamptz
 import skunk.codec.all.uuid
 import skunk.codec.all.varchar
+
 import tm.effects.IsUUID
 import tm.syntax.refined.commonSyntaxAutoRefineV
 

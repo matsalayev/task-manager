@@ -4,6 +4,7 @@ import cats.data.OptionT
 import cats.effect.Resource
 import cats.implicits._
 import skunk._
+
 import tm.Language
 import tm.ResponseMessages.USER_NOT_FOUND
 import tm.domain.PersonId

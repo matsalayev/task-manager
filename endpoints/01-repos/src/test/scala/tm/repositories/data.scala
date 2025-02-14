@@ -5,6 +5,7 @@ import cats.effect.Resource
 import cats.implicits.catsSyntaxOptionId
 import cats.implicits.toFoldableOps
 import skunk.Session
+
 import tm.generators._
 import tm.repositories.sql._
 import tm.support.skunk.syntax.all.skunkSyntaxCommandOps

@@ -12,6 +12,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import sttp.client3._
 import sttp.client3.circe._
 import sttp.model._
+
 import tm.support.sttp.SttpRequestBody._
 
 /** Wrapper around SttpBackend, that has built-in auth mechanisms and support for streaming of paginated responses

@@ -3,10 +3,11 @@ package tm.repositories
 import skunk._
 import skunk.codec.all._
 import skunk.data.Type
-import tm.Language
-import tm.domain.enums._
 import tsec.passwordhashers.PasswordHash
 import tsec.passwordhashers.jca.SCrypt
+
+import tm.Language
+import tm.domain.enums._
 
 package object sql {
   val gender: Codec[Gender] = `enum`[Gender](Gender, Type("gender"))

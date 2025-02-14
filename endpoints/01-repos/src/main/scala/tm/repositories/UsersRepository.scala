@@ -2,6 +2,7 @@ package tm.repositories
 
 import cats.effect.Resource
 import skunk._
+
 import tm.Phone
 import tm.domain.auth.AccessCredentials
 import tm.domain.auth.AuthedUser.User

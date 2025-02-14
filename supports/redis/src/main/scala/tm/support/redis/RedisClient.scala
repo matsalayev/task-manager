@@ -7,6 +7,7 @@ import cats.implicits.toFunctorOps
 import dev.profunktor.redis4cats.RedisCommands
 import eu.timepit.refined.types.string.NonEmptyString
 import io.circe.Encoder
+
 import tm.syntax.all.genericSyntaxGenericTypeOps
 
 trait RedisClient[F[_]] {

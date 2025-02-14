@@ -7,6 +7,7 @@ import org.http4s._
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.circe.JsonDecoder
 import org.typelevel.log4cats.Logger
+
 import tm.Language
 import tm.auth.impl.Auth
 import tm.domain.auth.AuthedUser

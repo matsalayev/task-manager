@@ -4,9 +4,10 @@ import io.circe.Decoder
 import io.circe.Encoder
 import io.circe.generic.semiauto.deriveDecoder
 import io.circe.generic.semiauto.deriveEncoder
-import tm.syntax.circe._
 import tsec.passwordhashers.PasswordHash
 import tsec.passwordhashers.jca.SCrypt
+
+import tm.syntax.circe._
 
 case class AccessCredentials[+U](data: U, password: PasswordHash[SCrypt])
 object AccessCredentials {

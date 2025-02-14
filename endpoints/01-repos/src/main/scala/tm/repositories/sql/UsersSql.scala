@@ -3,6 +3,7 @@ package tm.repositories.sql
 import shapeless.HNil
 import skunk._
 import skunk.implicits._
+
 import tm.Phone
 import tm.domain.PersonId
 import tm.domain.auth.AccessCredentials

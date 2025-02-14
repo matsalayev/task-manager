@@ -7,6 +7,7 @@ import cats.syntax.all._
 import cron4s.CronExpr
 import cron4s.lib.javatime._
 import org.typelevel.log4cats.Logger
+
 import tm.effects.Calendar
 
 trait SupervisedCronJob[F[_], Env] {

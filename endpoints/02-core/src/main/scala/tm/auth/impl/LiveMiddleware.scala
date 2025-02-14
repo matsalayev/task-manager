@@ -8,6 +8,7 @@ import dev.profunktor.auth.jwt.JwtToken
 import io.circe.Decoder
 import org.http4s.server
 import pdi.jwt.JwtAlgorithm
+
 import tm.auth.AuthConfig.UserAuthConfig
 import tm.auth.utils.AuthMiddleware
 import tm.domain.auth.AuthedUser

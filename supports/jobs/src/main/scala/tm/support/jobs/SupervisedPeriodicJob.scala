@@ -5,6 +5,7 @@ import scala.concurrent.duration.FiniteDuration
 import cats.Monad
 import cats.syntax.all._
 import org.typelevel.log4cats.Logger
+
 import tm.effects.Calendar
 
 /** Entity responsible for monitoring job execution -

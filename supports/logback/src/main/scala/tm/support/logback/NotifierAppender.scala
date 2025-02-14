@@ -11,6 +11,7 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import pureconfig.generic.auto.exportReader
 import sttp.client3.httpclient.fs2.HttpClientFs2Backend
+
 import tm.utils.ConfigLoader
 
 class NotifierAppender[A] extends AppenderBase[A] {

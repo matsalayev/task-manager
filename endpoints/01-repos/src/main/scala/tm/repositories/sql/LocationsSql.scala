@@ -4,6 +4,7 @@ import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
 import skunk.codec.all.float8
 import skunk.implicits._
+
 import tm.domain.LocationId
 import tm.domain.corporate.Location
 import tm.support.skunk.Sql

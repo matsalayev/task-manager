@@ -2,6 +2,7 @@ package tm.repositories
 
 import cats.effect.Resource
 import skunk._
+
 import tm.domain.AssetId
 import tm.domain.asset.Asset
 import tm.repositories.sql.AssetsSql

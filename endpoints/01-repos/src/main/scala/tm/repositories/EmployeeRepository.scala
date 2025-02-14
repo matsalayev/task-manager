@@ -6,24 +6,25 @@ import skunk._
 
 import tm.Phone
 import tm.domain.EmployeeId
-import tm.domain.RankId
+import tm.domain.PersonId
+import tm.domain.SpecialtyId
 import tm.domain.employee.Employee
-import tm.domain.employee.Rank
+import tm.domain.employee.Specialty
 import tm.repositories.sql.EmployeesSql
-import tm.repositories.sql.RanksSql
+import tm.repositories.sql.SpecialtiesSql
 import tm.support.skunk.syntax.all._
 
 trait EmployeeRepository[F[_]] {
   def create(employee: Employee): F[Unit]
-  def findById(employeeId: EmployeeId): F[Option[Employee]]
-  def findByPhone(phone: Phone): F[Option[Employee]]
+  def findById(personId: PersonId): F[Option[dto.Employee]]
+  def findByPhone(phone: Phone): F[Option[dto.Employee]]
   def update(employee: Employee): F[Unit]
   def delete(employeeId: EmployeeId): F[Unit]
-  def createRank(rank: Rank): F[Unit]
-  def findRankById(rankId: RankId): F[Option[Rank]]
-  def findRankByName(name: NonEmptyString): F[Option[Rank]]
-  def updateRank(rank: Rank): F[Unit]
-  def deleteRank(rankId: RankId): F[Unit]
+  def createRank(specialty: Specialty): F[Unit]
+  def findRankById(specialtyId: SpecialtyId): F[Option[Specialty]]
+  def findRankByName(name: NonEmptyString): F[Option[Specialty]]
+  def updateRank(specialty: Specialty): F[Unit]
+  def deleteRank(specialtyId: SpecialtyId): F[Unit]
 }
 
 object EmployeeRepository {
@@ -34,10 +35,10 @@ object EmployeeRepository {
     override def create(employee: Employee): F[Unit] =
       EmployeesSql.insert.execute(employee)
 
-    override def findById(employeeId: EmployeeId): F[Option[Employee]] =
-      EmployeesSql.findById.queryOption(employeeId)
+    override def findById(personId: PersonId): F[Option[dto.Employee]] =
+      EmployeesSql.findById.queryOption(personId)
 
-    override def findByPhone(phone: Phone): F[Option[Employee]] =
+    override def findByPhone(phone: Phone): F[Option[dto.Employee]] =
       EmployeesSql.findByPhone.queryOption(phone)
 
     override def update(employee: Employee): F[Unit] = EmployeesSql.update.execute(employee)
@@ -45,19 +46,19 @@ object EmployeeRepository {
     override def delete(employeeId: EmployeeId): F[Unit] =
       EmployeesSql.delete.execute(employeeId)
 
-    override def createRank(rank: Rank): F[Unit] =
-      RanksSql.insert.execute(rank)
+    override def createRank(specialty: Specialty): F[Unit] =
+      SpecialtiesSql.insert.execute(specialty)
 
-    override def findRankById(rankId: RankId): F[Option[Rank]] =
-      RanksSql.findById.queryOption(rankId)
+    override def findRankById(specialtyId: SpecialtyId): F[Option[Specialty]] =
+      SpecialtiesSql.findById.queryOption(specialtyId)
 
-    override def findRankByName(name: NonEmptyString): F[Option[Rank]] =
-      RanksSql.findByName.queryOption(name)
+    override def findRankByName(name: NonEmptyString): F[Option[Specialty]] =
+      SpecialtiesSql.findByName.queryOption(name)
 
-    override def updateRank(rank: Rank): F[Unit] =
-      RanksSql.update.execute(rank)
+    override def updateRank(specialty: Specialty): F[Unit] =
+      SpecialtiesSql.update.execute(specialty)
 
-    override def deleteRank(rankId: RankId): F[Unit] =
-      RanksSql.delete.execute(rankId)
+    override def deleteRank(specialtyId: SpecialtyId): F[Unit] =
+      SpecialtiesSql.delete.execute(specialtyId)
   }
 }
