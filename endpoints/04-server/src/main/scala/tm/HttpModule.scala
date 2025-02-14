@@ -23,7 +23,7 @@ object HttpModule {
       .of[Routes[F, AuthedUser]](
         new TelegramBotsRoutes[F](
           env.services.telegramService,
-          env.telegramParentsBot.webhookSecret,
+          env.telegramCorporateBot.webhookSecret,
         ),
         new AuthRoutes[F](env.services.auth),
         new AssetsRoutes[F](env.services.assets),

@@ -18,7 +18,8 @@ case class Config(
     s3: AWSConfig,
     adminPhone: Phone,
     jobs: JobsRunnerConfig,
-    telegramParentsBot: TelegramBotsConfig,
+    tmCorporateBot: TelegramBotsConfig,
+    tmEmployeeBot: TelegramBotsConfig,
   ) {
   lazy val migrations: MigrationsConfig = MigrationsConfig(
     hostname = database.host.value,

@@ -11,7 +11,8 @@ import tm.support.redis.RedisClient
 
 case class Environment[F[_]: Async](
     config: HttpServerConfig,
-    telegramParentsBot: TelegramBotsConfig,
+    telegramCorporateBot: TelegramBotsConfig,
+    telegramEmployeeBot: TelegramBotsConfig,
     middlewares: Middlewares[F],
     services: Services[F],
     s3Client: S3Client[F],

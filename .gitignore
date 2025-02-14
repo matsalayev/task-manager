@@ -3,5 +3,5 @@
 .local
 target
 .env
-local.conf
+#local.conf
 application.log

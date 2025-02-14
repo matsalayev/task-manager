@@ -41,7 +41,8 @@ case class Environment[F[_]: Async: MonadThrow: Logger](
       s3Client = s3Client,
       telegramClient = telegramClient,
       redis = redis,
-      telegramParentsBot = config.telegramParentsBot,
+      telegramCorporateBot = config.tmCorporateBot,
+      telegramEmployeeBot = config.tmEmployeeBot,
     )
   lazy val toJobs: JobsEnvironment[F] =
     JobsEnvironment(
@@ -64,7 +65,7 @@ object Environment {
       implicit0(random: Random[F]) <- Resource.eval(Random.scalaUtilRandom)
       s3Client <- S3Client.resource(config.s3)
       telegramBroker <- HttpClientFs2Backend.resource[F]().map { implicit backend =>
-        TelegramClient.make[F](config.telegramParentsBot)
+        TelegramClient.make[F](config.tmEmployeeBot)
       }
       services = Services
         .make[F](config.auth, repositories, redis, s3Client, telegramBroker)
