@@ -4,13 +4,13 @@ import io.circe.generic.extras.Configuration
 import io.circe.generic.extras.ConfiguredJsonCodec
 
 @ConfiguredJsonCodec
-case class TelegramMessage(
+case class Message(
     messageId: Long,
     from: Option[User],
     text: Option[String],
     contact: Option[Contact],
   )
 
-object TelegramMessage {
+object Message {
   implicit val configuration: Configuration = Configuration.default.withSnakeCaseMemberNames
 }

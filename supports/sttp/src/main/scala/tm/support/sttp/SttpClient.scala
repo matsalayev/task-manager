@@ -36,7 +36,7 @@ object SttpClient {
       modifyRequestBodyForShow: String => String = identity[String],
     ): SttpClient[F, H] =
     new SttpClient[F, H] {
-      private val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F]("digitalschool.sttp-client")
+      private val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F]("tm.sttp-client")
 
       override def request[R, Q](
           query: R

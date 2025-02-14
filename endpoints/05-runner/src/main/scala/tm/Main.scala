@@ -8,6 +8,7 @@ import cats.implicits.catsSyntaxOptionId
 import cats.implicits.toTraverseOps
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
 import tm.setup.Environment
 
 object Main extends IOApp {

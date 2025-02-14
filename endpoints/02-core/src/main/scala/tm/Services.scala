@@ -40,7 +40,8 @@ object Services {
       ),
       telegramService = TelegramService.make[F](
         telegramClient,
-        repositories.telegramBotUsersRepository,
+        repositories.telegramRepository,
+        repositories.employeeRepository
       ),
     )
   }

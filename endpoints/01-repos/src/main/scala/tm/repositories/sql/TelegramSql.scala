@@ -7,12 +7,12 @@ import tm.domain.PersonId
 import tm.domain.telegram.BotUser
 import tm.support.skunk.Sql
 
-private[repositories] object TelegramBotUsersSql extends Sql {
+private[repositories] object TelegramSql extends Sql {
   private val columns = PeopleSql.id *: int8
 
   val codec: Codec[BotUser] = columns.to[BotUser]
 
-  val insert: Command[BotUser] =
+  val insertBotUser: Command[BotUser] =
     sql"""INSERT INTO telegram_bot_users VALUES ($codec)""".command
 
   val findById: Query[Long, PersonId] =

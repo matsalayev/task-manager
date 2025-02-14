@@ -3,8 +3,8 @@ package tm.services
 import cats.MonadThrow
 import cats.implicits._
 import tm.domain.AssetId
-import tm.domain.FileMeta
 import tm.domain.asset.Asset
+import tm.domain.asset.FileMeta
 import tm.effects.Calendar
 import tm.effects.GenUUID
 import tm.integration.aws.s3.S3Client

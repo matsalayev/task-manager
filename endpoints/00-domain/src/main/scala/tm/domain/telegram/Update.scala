@@ -7,8 +7,8 @@ import io.circe.refined._
 @ConfiguredJsonCodec
 case class Update(
     updateId: Int,
-    message: Option[TelegramMessage],
-    callbackQuery: Option[TelegramCallbackQuery],
+    message: Option[Message],
+    callbackQuery: Option[CallbackQuery],
   )
 
 object Update {

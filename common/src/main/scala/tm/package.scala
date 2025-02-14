@@ -11,13 +11,13 @@ package object tm {
   type Login = String Refined MatchesRegex[W.`"(^[A-Za-z]{3,16})$"`.T]
   type Phone = String Refined MatchesRegex[W.`"""[+][\\d]{12}+"""`.T]
   type Digits = String Refined MatchesRegex[W.`"""[\\d]+"""`.T]
-  lazy val AppDomain: String =
-    Mode.current match {
-      case Mode.Development => "http://dev.digitalschool"
-      case Mode.Test => "http://dev.digitalschool"
-      case Mode.Production => "https://data.it-forelead.uz"
-      case Mode.Staging => "http://digitalschool"
-    }
+//  lazy val AppDomain: String =
+//    Mode.current match {
+//      case Mode.Development => "http://dev.tm"
+//      case Mode.Test => "http://dev.tm"
+//      case Mode.Production => "https://tm.it-forelead.uz"
+//      case Mode.Staging => "http://tm"
+//    }
 
   def randomStr[F[_]: Random: Monad](n: Int, cond: Char => Boolean = _ => true): F[String] = {
     def makeString(size: Int, string: String): F[String] =

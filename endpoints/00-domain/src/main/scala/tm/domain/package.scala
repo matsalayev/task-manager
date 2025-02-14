@@ -23,6 +23,27 @@ package object domain {
   @derive(eqv, show, uuid)
   @newtype case class AssetId(value: UUID)
 
+  @derive(eqv, show, uuid)
+  @newtype case class LocationId(value: UUID)
+
+  @derive(eqv, show, uuid)
+  @newtype case class CorporateId(value: UUID)
+
+  @derive(eqv, show, uuid)
+  @newtype case class EmployeeId(value: UUID)
+
+  @derive(eqv, show, uuid)
+  @newtype case class RankId(value: UUID)
+
+  @derive(eqv, show, uuid)
+  @newtype case class ProjectId(value: UUID)
+
+  @derive(eqv, show, uuid)
+  @newtype case class TaskId(value: UUID)
+
+  @derive(eqv, show, uuid)
+  @newtype case class TagId(value: UUID)
+
   @newtype case class JwtAccessTokenKey(secret: NonEmptyString)
 
   object JwtAccessTokenKey {

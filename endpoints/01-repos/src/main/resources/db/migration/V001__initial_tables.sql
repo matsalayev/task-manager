@@ -31,6 +31,14 @@ CREATE TYPE ROLE AS ENUM (
 	'staff'
 );
 
+CREATE TYPE TASK_STATUS AS ENUM (
+	'to_do',
+	'in_progress',
+	'in_review',
+	'testing',
+	'done'
+);
+
 CREATE TABLE assets (
   id UUID PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -53,13 +61,77 @@ CREATE TABLE people (
 );
 
 CREATE TABLE users (
-  id UUID PRIMARY KEY REFERENCES people(id),
+  id UUID PRIMARY KEY REFERENCES people (id),
   role ROLE NOT NULL,
   phone VARCHAR NOT NULL UNIQUE,
   password VARCHAR NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE NULL,
   deleted_at TIMESTAMP WITH TIME ZONE NULL
 );
+
+CREATE TABLE locations (
+  id UUID PRIMARY KEY,
+  name VARCHAR NOT NULL,
+  latitude FLOAT NOT NULL,
+  longitude FLOAT NOT NULL
+);
+
+CREATE TABLE corporations (
+  id UUID PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  name VARCHAR NOT NULL,
+  location_id UUID NOT NULL REFERENCES locations (id),
+  asset_id UUID NULL REFERENCES assets (id)
+);
+
+CREATE TABLE ranks (
+  id UUID PRIMARY KEY,
+  name VARCHAR NOT NULL
+);
+
+CREATE TABLE employees (
+  id UUID PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  person_id UUID NOT NULL REFERENCES people (id),
+  corporate_id UUID NOT NULL REFERENCES corporations (id),
+  rank_id UUID NOT NULL REFERENCES ranks (id),
+  asset_id UUID NULL REFERENCES assets (id),
+  phone VARCHAR NOT NULL UNIQUE
+);
+
+CREATE TABLE projects (
+  id UUID PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  created_by UUID NOT NULL REFERENCES employees (id),
+  corporate_id UUID NOT NULL REFERENCES corporations (id),
+  name VARCHAR NOT NULL,
+  description VARCHAR NULL
+);
+
+CREATE TABLE tags (
+  id UUID PRIMARY KEY,
+  name VARCHAR NOT NULL,
+  color VARCHAR NOT NULL
+);
+
+CREATE TABLE task (
+  id UUID PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  created_by UUID NOT NULL REFERENCES employees (id),
+  corporate_id UUID NOT NULL REFERENCES corporations (id),
+  name VARCHAR NOT NULL,
+  description VARCHAR NULL,
+  tag_id UUID NULL REFERENCES tags (id),
+  asset_id UUID NULL REFERENCES assets (id),
+  status TASK_STATUS NOT NULL,
+  deadline TIMESTAMP WITH TIME ZONE NULL
+);
+
+CREATE TABLE IF NOT EXISTS telegram_bot_users (
+    person_id UUID UNIQUE REFERENCES people (id) NOT NULL,
+    chat_id BIGINT UNIQUE NOT NULL
+);
+
 
 INSERT INTO people (id, created_at, full_name, gender, date_of_birth)
 VALUES (
@@ -70,6 +142,15 @@ VALUES (
   '2024-01-01'
 );
 
+INSERT INTO people (id, created_at, full_name, gender, date_of_birth)
+VALUES (
+  '521f4e39-95e6-44ea-8406-f5a5cc73144e',
+  now(),
+  'Azizbek Matsalayev',
+  'male',
+  '2003-05-20'
+);
+
 INSERT INTO users (id, role, phone, password)
 VALUES (
   '370ca333-5f7d-4981-9e25-b7886555c661',
@@ -78,8 +159,34 @@ VALUES (
   '$s0$e0801$5JK3Ogs35C2h5htbXQoeEQ==$N7HgNieSnOajn1FuEB7l4PhC6puBSq+e1E8WUaSJcGY='
 );
 
-CREATE TABLE IF NOT EXISTS telegram_bot_users
-(
-    people_id UUID UNIQUE REFERENCES people (id) NOT NULL,
-    chat_id BIGINT UNIQUE NOT NULL
+INSERT INTO locations (id, name, latitude, longitude)
+VALUES (
+  '832a34d2-6d28-4778-85d4-ed18e42b3b01',
+  'Furqat ko`chasi 31',
+  41.552074,
+  60.607359
+ );
+
+INSERT INTO corporations (id, created_at, name, location_id)
+VALUES (
+  '2c0a9567-a36f-48de-9fa4-a233f4be507e',
+  now(),
+  'KV',
+  '832a34d2-6d28-4778-85d4-ed18e42b3b01'
+);
+
+INSERT INTO ranks (id, name)
+VALUES (
+  'e68c531c-332d-4f73-9745-ba2c600b0031',
+  'junior'
+);
+
+INSERT INTO employees (id, created_at, person_id, corporate_id, rank_id, phone)
+VALUES (
+  '4add61d1-66f3-4339-8775-67515d86f489',
+  now(),
+  '521f4e39-95e6-44ea-8406-f5a5cc73144e',
+  '2c0a9567-a36f-48de-9fa4-a233f4be507e',
+  'e68c531c-332d-4f73-9745-ba2c600b0031',
+  '+998919991901'
 );

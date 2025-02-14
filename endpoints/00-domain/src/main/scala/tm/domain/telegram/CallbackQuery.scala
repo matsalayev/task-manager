@@ -6,13 +6,13 @@ import io.circe.generic.extras.ConfiguredJsonCodec
 import io.circe.refined._
 
 @ConfiguredJsonCodec
-case class TelegramCallbackQuery(
+case class CallbackQuery(
     from: Option[User],
     text: Option[String],
-    message: Option[TelegramMessage],
+    message: Option[Message],
     data: Option[NonEmptyString],
   )
 
-object TelegramCallbackQuery {
+object CallbackQuery {
   implicit val configuration: Configuration = Configuration.default.withSnakeCaseMemberNames
 }

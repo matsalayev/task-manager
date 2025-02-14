@@ -33,9 +33,9 @@ class NotifierAppender[A] extends AppenderBase[A] {
           val className = loggingEvent.getLoggerName.split('.').last
           val throwableProxy = loggingEvent.getThrowableProxy
           if (throwableProxy != null)
-            s"#DigitalSchool\n\n$className | $msg | ${throwableProxy.getMessage}"
+            s"#TaskManager\n\n$className | $msg | ${throwableProxy.getMessage}"
           else
-            s"#DigitalSchool\n\n$className | $msg"
+            s"#TaskManager\n\n$className | $msg"
 
         case _ =>
           eventObject.toString

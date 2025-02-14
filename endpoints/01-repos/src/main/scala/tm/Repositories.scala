@@ -9,7 +9,11 @@ case class Repositories[F[_]](
     users: UsersRepository[F],
     people: PeopleRepository[F],
     assetsRepository: AssetsRepository[F],
-    telegramBotUsersRepository: TelegramBotUsersRepository[F],
+    telegramRepository: TelegramRepository[F],
+    employeeRepository: EmployeeRepository[F],
+    corporationsRepository: CorporationsRepository[F],
+    projectsRepository: ProjectsRepository[F],
+    tasksRepository: TasksRepository[F]
   )
 
 object Repositories {
@@ -21,6 +25,10 @@ object Repositories {
       users = UsersRepository.make[F],
       people = PeopleRepository.make[F],
       assetsRepository = AssetsRepository.make[F],
-      telegramBotUsersRepository = TelegramBotUsersRepository.make[F],
+      telegramRepository = TelegramRepository.make[F],
+      employeeRepository = EmployeeRepository.make[F],
+      corporationsRepository = CorporationsRepository.make[F],
+      projectsRepository = ProjectsRepository.make[F],
+      tasksRepository = TasksRepository.make[F]
     )
 }

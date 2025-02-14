@@ -1,4 +1,4 @@
-package tm.domain
+package tm.domain.asset
 
 case class FileMeta[F[_]](
     bytes: fs2.Stream[F, Byte],
