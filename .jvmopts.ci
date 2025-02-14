@@ -1,0 +1,10 @@
+-Xss2m
+-Xms512m
+-Xmx3G
+-XX:+UseParallelGC
+-XX:ParallelGCThreads=2
+-Duser.timezone="GMT"
+-XX:+AlwaysPreTouch
+-XX:ReservedCodeCacheSize=384m
+-XX:+UseCodeCacheFlushing
+-XshowSettings:vm
