@@ -7,6 +7,7 @@ import cats.Monad
 import cats.implicits.catsSyntaxOptionId
 import cats.implicits.toFlatMapOps
 import cats.implicits.toFunctorOps
+import eu.timepit.refined.types.string.NonEmptyString
 import org.typelevel.log4cats.Logger
 
 import tm.Phone
@@ -16,6 +17,7 @@ import tm.domain.telegram.CallbackQuery
 import tm.domain.telegram.Contact
 import tm.domain.telegram.Message
 import tm.domain.telegram.Update
+import tm.domain.telegram.User
 import tm.effects.Calendar
 import tm.integrations.telegram.TelegramClient
 import tm.integrations.telegram.domain.InlineKeyboardButton
@@ -45,57 +47,72 @@ object EmployeeBotService {
     ): EmployeeBotService[F] = new EmployeeBotService[F] {
     override def telegramMessage(update: Update): F[Unit] =
       update match {
-        case Update(_, Some(Message(_, Some(user), _, Some(text), None, _, _, _, _)), _) =>
-          text match {
-            case "/start" => sendContactRequest(user.id)
-            case "/me" => sendEmployeeInfo(user.id)
-            case "/corporate" => sendCorporateInfo(user.id)
-            case "/projects" => sendProjects(user.id)
-            case _ => logger.info(s"undefined behaviour for customer bot")
-          }
-        case Update(
+        case Update(_, Some(message), _) => handleMessage(message)
+        case Update(_, _, Some(callbackQuery)) => handleCallbackQuery(callbackQuery)
+        case _ => logger.info("unknown update type")
+      }
+
+    private def handleMessage(message: Message): F[Unit] =
+      message match {
+        case Message(_, Some(user), _, Some(text), _, _, _, _, _) => handleTextMessage(user, text)
+        case Message(
                _,
-               Some(
-                 Message(
-                   _,
-                   Some(user),
-                   _,
-                   None,
-                   Some(Contact(phoneNumberStr, Some(userTelegramId))),
-                   _,
-                   _,
-                   _,
-                   _,
-                 )
-               ),
+               Some(user),
+               _,
+               None,
+               Some(Contact(phoneNumberStr, Some(userTelegramId))),
+               _,
+               _,
+               _,
                _,
              ) if user.id == userTelegramId =>
-          val phoneNumber: Phone =
-            if (phoneNumberStr.startsWith("+")) phoneNumberStr else s"+$phoneNumberStr"
-
-          employeeRepository.findByPhone(phoneNumber).flatMap {
-            case Some(employee) =>
-              saveBotUser(user.id, employee.personId).flatMap(_ => sendEmployeeInfo(user.id))
-            case _ =>
-              telegramClient.sendMessage(
-                user.id,
-                s"Uzr ${user.firstName} sizning '$phoneNumberStr' raqamingizni ota-onalar orasidan topa olmadik!",
-                ReplyKeyboardRemove().some,
-              )
-          }
-
-        case Update(_, _, Some(CallbackQuery(Some(user), _, Some(message), Some(data)))) =>
-          val regexData =
-            """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})__(\d{2})__(\d{2})""".r
-          val regexWeek =
-            """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})__(\d{2})""".r
-          val regexMonth =
-            """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})""".r
-          data.value match {
-            case _ => logger.warn(s"unknown data type")
-          }
-        case _ => logger.info(s"unknown update type")
+          handleContactMessage(user, phoneNumberStr)
+        case _ => logger.info("undefined behaviour for customer bot")
       }
+
+    private def handleTextMessage(user: User, text: String): F[Unit] =
+      text match {
+        case "/start" => sendContactRequest(user.id)
+        case "/me" => sendEmployeeInfo(user.id)
+        case "/corporate" => sendCorporateInfo(user.id)
+        case "/projects" => sendProjects(user.id)
+        case _ => logger.info("undefined behaviour for customer bot")
+      }
+
+    private def handleContactMessage(user: User, phoneNumberStr: String): F[Unit] = {
+      val phoneNumber: Phone =
+        if (phoneNumberStr.startsWith("+")) phoneNumberStr else s"+$phoneNumberStr"
+
+      employeeRepository.findByPhone(phoneNumber).flatMap {
+        case Some(employee) =>
+          saveBotUser(user.id, employee.personId).flatMap(_ => sendEmployeeInfo(user.id))
+        case None =>
+          telegramClient.sendMessage(
+            user.id,
+            s"Uzr ${user.firstName} sizning '$phoneNumberStr' raqamingizni ota-onalar orasidan topa olmadik!",
+            ReplyKeyboardRemove().some,
+          )
+      }
+    }
+
+    private def handleCallbackQuery(callbackQuery: CallbackQuery): F[Unit] =
+      callbackQuery match {
+        case CallbackQuery(Some(user), _, Some(message), Some(data)) =>
+          handleCallbackData(data)
+        case _ => logger.warn("unknown callback query structure")
+      }
+
+    private def handleCallbackData(data: NonEmptyString): F[Unit] = {
+      val regexData =
+        """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})__(\d{2})__(\d{2})""".r
+      val regexWeek =
+        """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})__(\d{2})""".r
+      val regexMonth = """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})""".r
+
+      data.value match {
+        case _ => logger.warn("unknown data type")
+      }
+    }
 
     private def sendContactRequest(chatId: Long): F[Unit] =
       telegramClient.sendMessage(
@@ -169,13 +186,13 @@ object EmployeeBotService {
             case Some(employee) =>
               projectsRepository.getAll(employee.corporateId).flatMap { projects =>
                 Applicative[F].unit
-//                case Some(corporate) =>
-//                  telegramClient.sendMessage(
-//                    chatId,
-//                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
-//                    ReplyKeyboardRemove().some,
-//                  )
-//                case _ => Applicative[F].unit
+              //                case Some(corporate) =>
+              //                  telegramClient.sendMessage(
+              //                    chatId,
+              //                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
+              //                    ReplyKeyboardRemove().some,
+              //                  )
+              //                case _ => Applicative[F].unit
               }
             case _ =>
               telegramClient.sendMessage(
