@@ -29,11 +29,11 @@ import tm.repositories.ProjectsRepository
 import tm.repositories.TelegramRepository
 import tm.syntax.refined.commonSyntaxAutoRefineV
 
-trait TelegramService[F[_]] {
+trait CorporateBotService[F[_]] {
   def telegramMessage(update: Update): F[Unit]
 }
 
-object TelegramService {
+object CorporateBotService {
   def make[F[_]: Monad: Calendar](
       telegramClient: TelegramClient[F],
       telegramRepository: TelegramRepository[F],
@@ -42,10 +42,10 @@ object TelegramService {
       projectsRepository: ProjectsRepository[F],
     )(implicit
       logger: Logger[F]
-    ): TelegramService[F] = new TelegramService[F] {
+    ): CorporateBotService[F] = new CorporateBotService[F] {
     override def telegramMessage(update: Update): F[Unit] =
       update match {
-        case Update(_, Some(Message(_, Some(user), Some(text), None)), _) =>
+        case Update(_, Some(Message(_, Some(user), _, Some(text), None, _, _, _, _)), _) =>
           text match {
             case "/start" => sendContactRequest(user.id)
             case "/me" => sendEmployeeInfo(user.id)
@@ -59,8 +59,13 @@ object TelegramService {
                  Message(
                    _,
                    Some(user),
+                   _,
                    None,
                    Some(Contact(phoneNumberStr, Some(userTelegramId))),
+                   _,
+                   _,
+                   _,
+                   _,
                  )
                ),
                _,
@@ -164,13 +169,13 @@ object TelegramService {
             case Some(employee) =>
               projectsRepository.getAll(employee.corporateId).flatMap { projects =>
                 Applicative[F].unit
-//                case Some(corporate) =>
-//                  telegramClient.sendMessage(
-//                    chatId,
-//                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
-//                    ReplyKeyboardRemove().some,
-//                  )
-//                case _ => Applicative[F].unit
+              //                case Some(corporate) =>
+              //                  telegramClient.sendMessage(
+              //                    chatId,
+              //                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
+              //                    ReplyKeyboardRemove().some,
+              //                  )
+              //                case _ => Applicative[F].unit
               }
             case _ =>
               telegramClient.sendMessage(

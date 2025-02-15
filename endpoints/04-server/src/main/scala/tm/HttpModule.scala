@@ -23,7 +23,8 @@ object HttpModule {
     NonEmptyList
       .of[Routes[F, AuthedUser]](
         new TelegramBotsRoutes[F](
-          env.services.telegramService,
+          env.services.corporateBotService,
+          env.services.employeeBotService,
           env.telegramCorporateBot.webhookSecret,
         ),
         new AuthRoutes[F](env.services.auth),

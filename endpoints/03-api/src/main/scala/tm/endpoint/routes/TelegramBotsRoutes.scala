@@ -14,13 +14,16 @@ import org.http4s.circe._
 import org.typelevel.log4cats.Logger
 
 import tm.domain.auth.AuthedUser
+import tm.domain.enums.BotType
 import tm.domain.telegram.Update
-import tm.services.TelegramService
+import tm.services.CorporateBotService
+import tm.services.EmployeeBotService
 import tm.support.http4s.utils.Routes
 import tm.syntax.all.circeSyntaxJsonDecoderOps
 
 final case class TelegramBotsRoutes[F[_]: JsonDecoder: Concurrent](
-    telegram: TelegramService[F],
+    corporateBotService: CorporateBotService[F],
+    employeeBotService: EmployeeBotService[F],
     webhookSecret: NonEmptyString,
   )(implicit
     logger: Logger[F]
@@ -29,7 +32,7 @@ final case class TelegramBotsRoutes[F[_]: JsonDecoder: Concurrent](
 
   override val public: HttpRoutes[F] =
     HttpRoutes.of[F] {
-      case req @ POST -> Root / "bot" / "webhook" =>
+      case req @ POST -> Root / "bot" / "webhook" / botType =>
         val process =
           req
             .headers
@@ -41,7 +44,11 @@ final case class TelegramBotsRoutes[F[_]: JsonDecoder: Concurrent](
                   .asJson
                   .flatMap(a => logger.info(a.spaces2) *> a.decodeAsF[F, Update])
                   .flatMap { update =>
-                    telegram.telegramMessage(update)
+                    BotType.withName(botType) match {
+                      case BotType.Corporate => corporateBotService.telegramMessage(update)
+                      case BotType.Employee => employeeBotService.telegramMessage(update)
+                      case _ => logger.info(s"BotType not found: $botType")
+                    }
                   }
                   .handleErrorWith { e =>
                     logger.error(e)("Error while processing telegram webhook update")

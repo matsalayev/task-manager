@@ -17,7 +17,9 @@ import tm.support.redis.RedisClient
 case class Services[F[_]](
     auth: Auth[F, AuthedUser],
     assets: AssetsService[F],
-    telegramService: TelegramService[F],
+    tasksService: TasksService[F],
+    corporateBotService: CorporateBotService[F],
+    employeeBotService: EmployeeBotService[F],
   )
 
 object Services {
@@ -26,7 +28,8 @@ object Services {
       repositories: Repositories[F],
       redis: RedisClient[F],
       s3Client: S3Client[F],
-      telegramClient: TelegramClient[F],
+      telegramClientCorporate: TelegramClient[F],
+      telegramClientEmployee: TelegramClient[F],
     ): Services[F] = {
     def findUser: Phone => F[Option[AccessCredentials[AuthedUser]]] = phone =>
       OptionT(repositories.users.find(phone))
@@ -39,8 +42,16 @@ object Services {
         repositories.assetsRepository,
         s3Client,
       ),
-      telegramService = TelegramService.make[F](
-        telegramClient,
+      employeeBotService = EmployeeBotService.make[F](
+        telegramClientEmployee,
+        repositories.telegramRepository,
+        repositories.employeeRepository,
+        repositories.corporationsRepository,
+        repositories.projectsRepository,
+      ),
+      tasksService = TasksService.make[F](repositories.tasksRepository),
+      corporateBotService = CorporateBotService.make[F](
+        telegramClientCorporate,
         repositories.telegramRepository,
         repositories.employeeRepository,
         repositories.corporationsRepository,

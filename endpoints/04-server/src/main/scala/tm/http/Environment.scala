@@ -17,6 +17,7 @@ case class Environment[F[_]: Async](
     middlewares: Middlewares[F],
     services: Services[F],
     s3Client: S3Client[F],
-    telegramClient: TelegramClient[F],
+    telegramClientEmployee: TelegramClient[F],
+    telegramClientCorporate: TelegramClient[F],
     redis: RedisClient[F],
   )
