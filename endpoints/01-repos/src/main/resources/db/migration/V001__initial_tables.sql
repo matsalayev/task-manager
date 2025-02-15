@@ -118,7 +118,7 @@ CREATE TABLE tasks (
   id UUID PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL,
   created_by UUID NOT NULL REFERENCES employees (id),
-  corporate_id UUID NOT NULL REFERENCES corporations (id),
+  project_id UUID NOT NULL REFERENCES projects (id),
   name VARCHAR NOT NULL,
   description VARCHAR NULL,
   tag_id UUID NULL REFERENCES tags (id),
