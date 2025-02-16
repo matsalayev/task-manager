@@ -53,9 +53,14 @@ object Services {
       corporateBotService = CorporateBotService.make[F](
         telegramClientCorporate,
         repositories.telegramRepository,
+        repositories.people,
+        repositories.users,
         repositories.employeeRepository,
         repositories.corporationsRepository,
         repositories.projectsRepository,
+        repositories.assetsRepository,
+        s3Client,
+        redis,
       ),
     )
   }

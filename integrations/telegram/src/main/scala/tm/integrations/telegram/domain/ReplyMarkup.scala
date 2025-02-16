@@ -16,7 +16,6 @@ object ReplyMarkup {
   @ConfiguredJsonCodec
   case class ReplyInlineKeyboardMarkup(
       inlineKeyboard: List[List[InlineKeyboardButton]],
-      removeKeyboard: Boolean = true,
     ) extends ReplyMarkup
 
   @ConfiguredJsonCodec

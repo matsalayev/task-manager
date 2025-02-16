@@ -58,7 +58,7 @@ CREATE TABLE users (
   phone VARCHAR NOT NULL UNIQUE,
   asset_id UUID NULL REFERENCES assets (id),
   corporate_id UUID NOT NULL REFERENCES corporations (id),
-  password VARCHAR NOT NULL,
+  password VARCHAR NULL,
   updated_at TIMESTAMP WITH TIME ZONE NULL,
   deleted_at TIMESTAMP WITH TIME ZONE NULL
 );

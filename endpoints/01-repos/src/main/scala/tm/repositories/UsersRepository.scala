@@ -6,12 +6,15 @@ import skunk._
 import tm.Phone
 import tm.domain.auth.AccessCredentials
 import tm.domain.auth.AuthedUser.User
+import tm.domain.corporate
 import tm.repositories.sql.UsersSql
 import tm.support.skunk.syntax.all._
 
 trait UsersRepository[F[_]] {
   def find(phone: Phone): F[Option[AccessCredentials[User]]]
   def create(userAndHash: AccessCredentials[User]): F[Unit]
+  def createUser(user: corporate.User): F[Unit]
+  def findByPhone(phone: Phone): F[Option[corporate.User]]
 }
 
 object UsersRepository {
@@ -22,7 +25,13 @@ object UsersRepository {
     override def find(phone: Phone): F[Option[AccessCredentials[User]]] =
       UsersSql.findByLogin.queryOption(phone)
 
+    override def findByPhone(phone: Phone): F[Option[corporate.User]] =
+      UsersSql.findByPhone.queryOption(phone)
+
     override def create(userAndHash: AccessCredentials[User]): F[Unit] =
       UsersSql.insert.execute(userAndHash)
+
+    override def createUser(user: corporate.User): F[Unit] =
+      UsersSql.createUser.execute(user)
   }
 }

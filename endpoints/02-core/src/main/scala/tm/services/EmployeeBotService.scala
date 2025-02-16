@@ -54,19 +54,14 @@ object EmployeeBotService {
 
     private def handleMessage(message: Message): F[Unit] =
       message match {
-        case Message(_, Some(user), _, Some(text), _, _, _, _, _) => handleTextMessage(user, text)
-        case Message(
-               _,
-               Some(user),
-               _,
-               None,
-               Some(Contact(phoneNumberStr, Some(userTelegramId))),
-               _,
-               _,
-               _,
-               _,
-             ) if user.id == userTelegramId =>
-          handleContactMessage(user, phoneNumberStr)
+        case Message(_, Some(user), Some(text), None, None, None, None, None) =>
+          handleTextMessage(user, text)
+        case Message(_, Some(user), None, Some(contact), None, None, None, None) =>
+          handleContactMessage(user, contact.phoneNumber)
+        case Message(_, Some(user), None, None, Some(photos), _, mediaGroupId, None) =>
+          Applicative[F].unit
+        case Message(_, Some(user), None, None, None, None, None, Some(location)) =>
+          Applicative[F].unit
         case _ => logger.info("undefined behaviour for customer bot")
       }
 
