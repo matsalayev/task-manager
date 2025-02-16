@@ -10,7 +10,7 @@ import tm.support.skunk.Sql
 import tm.support.skunk.codecs.nes
 
 private[repositories] object SpecialtiesSql extends Sql[SpecialtyId] {
-  private val codec: Codec[Specialty] = (id *: nes).to[Specialty]
+  private val codec: Codec[Specialty] = (id *: nes *: CorporationsSql.id).to[Specialty]
 
   val insert: Command[Specialty] =
     sql"""INSERT INTO specialties VALUES ($codec)""".command

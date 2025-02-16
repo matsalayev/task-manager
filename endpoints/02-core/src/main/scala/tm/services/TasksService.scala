@@ -3,6 +3,7 @@ package tm.services
 import cats.MonadThrow
 import cats.implicits._
 
+import tm.domain.CorporateId
 import tm.domain.EmployeeId
 import tm.domain.ProjectId
 import tm.domain.TagId
@@ -20,7 +21,7 @@ import tm.utils.ID
 
 trait TasksService[F[_]] {
   def create(task: CreateTask, createdBy: EmployeeId): F[Unit]
-  def createTag(tag: CreateTag): F[Unit]
+  def createTag(tag: CreateTag, corporateId: CorporateId): F[Unit]
   def getAllTasks(projectId: ProjectId): F[List[dto.Task]]
 }
 
@@ -48,9 +49,11 @@ object TasksService {
         )
       } yield ()
 
-      override def createTag(data: CreateTag): F[Unit] = for {
+      override def createTag(data: CreateTag, corporateId: CorporateId): F[Unit] = for {
         id <- ID.make[F, TagId]
-        _ <- tasksRepository.createTag(Tag(id = id, name = data.name, color = data.color))
+        _ <- tasksRepository.createTag(
+          Tag(id = id, name = data.name, color = data.color, corporateId = corporateId)
+        )
       } yield ()
 
       override def getAllTasks(projectId: ProjectId): F[List[dto.Task]] =

@@ -10,7 +10,7 @@ import tm.support.skunk.Sql
 import tm.support.skunk.codecs.nes
 
 private[repositories] object TagsSql extends Sql[TagId] {
-  private val codec: Codec[Tag] = (id *: nes *: nes).to[Tag]
+  private val codec: Codec[Tag] = (id *: nes *: nes *: CorporationsSql.id).to[Tag]
 
   val insert: Command[Tag] =
     sql"""INSERT INTO tags VALUES ($codec)""".command

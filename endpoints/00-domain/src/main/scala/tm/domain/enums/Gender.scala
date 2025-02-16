@@ -6,6 +6,6 @@ import enumeratum._
 sealed trait Gender extends Snakecase
 object Gender extends Enum[Gender] with CirceEnum[Gender] {
   case object Male extends Gender
-  case object female extends Gender
+  case object Female extends Gender
   override def values: IndexedSeq[Gender] = findValues
 }
