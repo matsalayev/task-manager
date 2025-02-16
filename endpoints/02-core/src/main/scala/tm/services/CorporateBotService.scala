@@ -9,12 +9,14 @@ import scala.concurrent.duration.FiniteDuration
 import cats.Applicative
 import cats.Monad
 import cats.effect.kernel.Sync
+import cats.implicits.catsSyntaxApplyOps
 import cats.implicits.catsSyntaxOptionId
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.implicits.catsSyntaxTuple3Semigroupal
 import cats.implicits.catsSyntaxTuple4Semigroupal
 import cats.implicits.toFlatMapOps
 import cats.implicits.toFunctorOps
+import cats.implicits.toTraverseOps
 import eu.timepit.refined.string.Regex
 import eu.timepit.refined.types.string.NonEmptyString
 import org.typelevel.log4cats.Logger
@@ -108,7 +110,13 @@ object CorporateBotService {
 
       text match {
         case "/start" => sendContactRequest(user.id)
-
+        case company if company.contains("🏢") => sendCompanySetting(user.id)
+        case "Menu \uD83C\uDFE0" => sendMenu(user.id)
+        case "Xodimlar \uD83D\uDC65" => sendEmployees(user.id)
+        case "Loyihalar \uD83D\uDDC2" => sendProjects(user.id)
+        case "Vazifalar \uD83D\uDCCB" => sendTasks(user.id)
+        case "Monitoring \uD83D\uDCCA" => sendMonitoring(user.id)
+        case "Sozlamalar ⚙\uFE0F" => sendSettings(user.id)
         case regexFullName(firstName, lastName) =>
           redis.get(user.id.toString + "+phone").flatMap {
             case Some(_) =>
@@ -190,7 +198,6 @@ object CorporateBotService {
               } yield ()
             case _ => Applicative[F].unit
           }
-        case regexCompanyName(companyName) => logger.info(s"$companyName")
 
         case regexCompanyName(companyName) =>
           (
@@ -206,29 +213,38 @@ object CorporateBotService {
             case _ => Applicative[F].unit
           }
 
-        case _ => logger.info("undefined behaviour for corporate bot")
+//        case _ => logger.info("undefined behaviour for corporate bot")
+        case _ => logger.info(s"${text.contains("🏢")}")
       }
     }
 
     private def handleContactMessage(user: User, contact: Contact): F[Unit] =
       contact match {
-        case Contact(phoneNumberStr, Some(userTelegramId)) =>
+        case Contact(phoneNumberStr, Some(userTelegramId)) if user.id == userTelegramId =>
           val phoneNumber: Phone =
             if (phoneNumberStr.startsWith("+")) phoneNumberStr else s"+$phoneNumberStr"
-          if (user.id == userTelegramId)
-            usersRepository.findByPhone(phoneNumber).flatMap {
-              case Some(corporateUser) => logger.info(s"$corporateUser")
-              // saveBotUser(user.id, corporateUser.id).flatMap(_ => sendEmployeeInfo(user.id))
-              case None =>
-                redis.put(user.id.toString + "+phone", phoneNumberStr, 60.minute).flatMap { _ =>
-                  telegramClient.sendMessage(
-                    user.id,
-                    s"Uzr sizni foydalanuvchilar orasidan topa olmadik!\nAgar bot foydalanuvchisi sifatida ro'yxatdan o'tmoqchi bo'lsangiz ism va familiyangizni yozib yuboring:\n\nIsm Familiya",
-                    ReplyKeyboardRemove().some,
-                  )
-                }
-            }
-          else Applicative[F].unit
+
+          usersRepository.findByPhone(phoneNumber).flatMap {
+            case Some(corporateUser) =>
+              (for {
+                personOpt <- peopleRepository.findById(corporateUser.id)
+                corporateOpt <- corporationsRepository.findById(corporateUser.corporateId)
+                assetOpt <- corporateUser.assetId.traverse(assetsRepository.findAsset)
+              } yield (personOpt, corporateOpt, assetOpt.flatten)).flatMap {
+                case (Some(person), Some(corporate), Some(asset)) =>
+                  sendUserInfo(user.id, corporateUser.role, person, corporate, asset)
+                case _ => Applicative[F].unit
+              }
+
+            case None =>
+              redis.put(user.id.toString + "+phone", phoneNumber.value, 60.minute) *>
+                telegramClient.sendMessage(
+                  user.id,
+                  s"Uzr, sizni foydalanuvchilar orasidan topa olmadik!\nAgar bot foydalanuvchisi sifatida ro'yxatdan o'tmoqchi bo'lsangiz, ism va familiyangizni yozib yuboring:\n\nIsm Familiya",
+                  ReplyKeyboardRemove().some,
+                )
+          }
+
         case _ => Applicative[F].unit
       }
 
@@ -249,25 +265,43 @@ object CorporateBotService {
                     for {
                       id <- ID.make[F, CorporateId]
                       now <- Calendar[F].currentZonedDateTime
-                      _ <- corporationsRepository.create(
-                        Corporate(
-                          id = id,
-                          createdAt = now,
-                          name = companyName,
-                          locationId = LocationId(UUID.fromString(location)),
-                          photo = None,
-                        )
+                      _ = println(phone, photo, companyName, location)
+                      company = Corporate(
+                        id = id,
+                        createdAt = now,
+                        name = companyName,
+                        locationId = LocationId(UUID.fromString(location)),
+                        photo = None,
                       )
+                      _ <- corporationsRepository.create(company)
                       role = Role.withName(data.value)
                       _ <- usersRepository.createUser(
                         corporate.User(
                           id = personId,
                           role = role,
                           phone = phone,
-                          asset_id = AssetId(UUID.fromString(photo)).some,
-                          corporate_id = id,
+                          assetId = AssetId(UUID.fromString(photo)).some,
+                          corporateId = id,
                         )
                       )
+                      _ <- telegramClient.deleteMessage(
+                        user.id,
+                        messageId = message.messageId,
+                      )
+                      person <- peopleRepository.findById(personId)
+                      _ <- person.fold(Applicative[F].unit) { person =>
+                        assetsRepository
+                          .findAsset(AssetId(UUID.fromString(photo)))
+                          .flatMap(assetOpt =>
+                            assetOpt.fold(Applicative[F].unit) { asset =>
+                              sendUserInfo(user.id, role, person, company, asset)
+                            }
+                          )
+                      }
+                      _ <- redis.del(user.id.toString + "+phone")
+                      _ <- redis.del(user.id.toString + "+photo")
+                      _ <- redis.del(user.id.toString + "+companyName")
+                      _ <- redis.del(user.id.toString + "+location")
                     } yield ()
                   case _ => Applicative[F].unit
                 }
@@ -275,6 +309,141 @@ object CorporateBotService {
             )
         case _ => logger.warn("unknown callback query structure")
       }
+
+    private def sendUserInfo(
+        chatId: Long,
+        role: Role,
+        person: dto.Person,
+        corporate: Corporate,
+        asset: Asset,
+      ): F[Unit] =
+      s3Client.downloadObject(asset.s3Key.value).compile.to(Array).flatMap { byteArray =>
+        telegramClient.sendPhoto(
+          chatId = chatId,
+          photo = byteArray,
+          caption = s"""Ism Familiya: ${person.fullName}
+                         |Tug'ilgan kun: ${person.dateOfBirth}
+                         |Hujjat raqami: ${person.documentNumber}
+                         |Jins: ${person.gender}
+                         |Pinfl: ${person.pinflNumber}
+                         |
+                         |Lavozim: $role""".stripMargin.some,
+          replyMarkup = ReplyKeyboardMarkup(
+            List(
+              List(
+                KeyboardButton(s"${corporate.name} \uD83C\uDFE2"),
+                KeyboardButton("Xodimlar \uD83D\uDC65"),
+              ),
+              List(
+                KeyboardButton("Loyihalar \uD83D\uDDC2"),
+                KeyboardButton("Vazifalar \uD83D\uDCCB"),
+                KeyboardButton("Monitoring \uD83D\uDCCA"),
+              ),
+              List(KeyboardButton("Sozlamalar ⚙\uFE0F")),
+            )
+          ).some,
+        )
+      }
+
+    private def sendCompanySetting(
+        chatId: Long
+      ): F[Unit] =
+      telegramClient.sendMessage(
+        chatId = chatId,
+        text = "test",
+        replyMarkup = ReplyKeyboardMarkup(
+          List(
+            List(KeyboardButton("E'lon yozish \uD83D\uDCCC")),
+            List(KeyboardButton("Surat \uD83D\uDDBC"), KeyboardButton("Joylashuv \uD83D\uDDFA")),
+            List(KeyboardButton("Menu \uD83C\uDFE0")),
+          )
+        ).some,
+      )
+
+    private def sendEmployees(
+        chatId: Long
+      ): F[Unit] =
+      telegramClient.sendMessage(
+        chatId = chatId,
+        text = "test",
+        replyMarkup = ReplyKeyboardMarkup(
+          List(
+            List(KeyboardButton("Lavozimlar \uD83D\uDCBC"), KeyboardButton("Xodim qo'shish ➕")),
+            List(KeyboardButton("Menu \uD83C\uDFE0")),
+          )
+        ).some,
+      )
+
+    private def sendSettings(
+        chatId: Long
+      ): F[Unit] =
+      telegramClient.sendMessage(
+        chatId = chatId,
+        text = "test",
+        replyMarkup = ReplyKeyboardMarkup(
+          List(
+            List(KeyboardButton("Telegram kanal ulash \uD83D\uDCE2")),
+            List(KeyboardButton("Hisob ma'lumotlarini yangilash ✏\uFE0F")),
+            List(KeyboardButton("Menu \uD83C\uDFE0")),
+          )
+        ).some,
+      )
+
+    private def sendProjects(
+        chatId: Long
+      ): F[Unit] =
+      telegramClient.sendMessage(
+        chatId = chatId,
+        text = "test",
+        replyMarkup = ReplyKeyboardMarkup(
+          List(
+            List(KeyboardButton("Loyiha qo'shish \uD83D\uDCDD")),
+            List(KeyboardButton("Menu \uD83C\uDFE0")),
+          )
+        ).some,
+      )
+
+    private def sendTasks(
+        chatId: Long
+      ): F[Unit] =
+      telegramClient.sendMessage(
+        chatId = chatId,
+        text = "test",
+        replyMarkup = ReplyKeyboardMarkup(
+          List(
+            List(KeyboardButton("Vazifa yaratish \uD83C\uDFAF"), KeyboardButton("Taglar #\uFE0F⃣")),
+            List(KeyboardButton("Menu \uD83C\uDFE0")),
+          )
+        ).some,
+      )
+
+    private def sendMonitoring(
+        chatId: Long
+      ): F[Unit] =
+      telegramClient.sendMessage(
+        chatId = chatId,
+        text = "test",
+      )
+
+    private def sendMenu(chatId: Long): F[Unit] =
+      telegramClient.sendMessage(
+        chatId = chatId,
+        text = "test",
+        replyMarkup = ReplyKeyboardMarkup(
+          List(
+            List(
+              KeyboardButton(s"Kompaniya \uD83C\uDFE2"),
+              KeyboardButton("Xodimlar \uD83D\uDC65"),
+            ),
+            List(
+              KeyboardButton("Loyihalar \uD83D\uDDC2"),
+              KeyboardButton("Vazifalar \uD83D\uDCCB"),
+              KeyboardButton("Monitoring \uD83D\uDCCA"),
+            ),
+            List(KeyboardButton("Sozlamalar ⚙\uFE0F")),
+          )
+        ).some,
+      )
 
     private def handleCallbackData(data: NonEmptyString): F[Unit] = {
       val regexData =
@@ -323,7 +492,7 @@ object CorporateBotService {
                             contentType = None,
                           )
                         )
-                        _ <- redis.put(user.id.toString + "+photo", id.value, 60.minutes)
+                        _ <- redis.put(user.id.toString + "+photo", id.toString, 60.minutes)
                         _ <- telegramClient.sendMessage(
                           user.id,
                           "Yana bir nechta bosqich qoldi.\nIltimos kamponiyangiz nomini '' ichida yozib yuboring:\n\n'Kamponiya'",
@@ -351,14 +520,14 @@ object CorporateBotService {
               _ <- corporationsRepository.createLocation(
                 Location(id = id, name = company, latitude = latitude, longitude = longitude)
               )
-              _ <- redis.put(user.id.toString + "+location", id.value, 60.minutes)
+              _ <- redis.put(user.id.toString + "+location", id.toString, 60.minutes)
               _ <- telegramClient.sendMessage(
                 user.id,
                 s"$company dagi lavozimingiz:",
-                reply_markup = ReplyInlineKeyboardMarkup(
+                replyMarkup = ReplyInlineKeyboardMarkup(
                   List(
-                    List(InlineKeyboardButton("Direktor", Role.Admin.toString)),
-                    List(InlineKeyboardButton("Manager", Role.Manager.toString)),
+                    List(InlineKeyboardButton("Direktor", "admin")),
+                    List(InlineKeyboardButton("Manager", "manager")),
                   )
                 ).some,
               )
@@ -375,91 +544,91 @@ object CorporateBotService {
         ).some,
       )
 
-    private def sendEmployeeInfo(chatId: Long): F[Unit] =
-      telegramRepository.findByChatId(chatId).flatMap {
-        case Some(personId) =>
-          employeeRepository.findById(personId).flatMap {
-            case Some(employee) =>
-              for {
-                _ <- telegramClient.sendMessage(
-                  chatId,
-                  s"Assalomu alaykum ${employee.fullName}\nKorporatsiya: ${employee.corporateName}\nLavozim: ${employee.specialtyName}",
-                  ReplyKeyboardRemove().some,
-                )
-              } yield ()
-            case _ =>
-              telegramClient.sendMessage(
-                chatId,
-                s"Uzr sizni xodimlar orasidan topa olmadik!",
-                ReplyKeyboardRemove().some,
-              )
-          }
-        case _ =>
-          telegramClient.sendMessage(
-            chatId,
-            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
-            ReplyKeyboardRemove().some,
-          )
-      }
-
-    private def sendCorporateInfo(chatId: Long): F[Unit] =
-      telegramRepository.findByChatId(chatId).flatMap {
-        case Some(personId) =>
-          employeeRepository.findById(personId).flatMap {
-            case Some(employee) =>
-              corporationsRepository.findById(employee.corporateId).flatMap {
-                case Some(corporate) =>
-                  telegramClient.sendMessage(
-                    chatId,
-                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
-                    ReplyKeyboardRemove().some,
-                  )
-                case _ => Applicative[F].unit
-              }
-            case _ =>
-              telegramClient.sendMessage(
-                chatId,
-                s"Uzr sizni xodimlar orasidan topa olmadik!",
-                ReplyKeyboardRemove().some,
-              )
-          }
-        case _ =>
-          telegramClient.sendMessage(
-            chatId,
-            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
-            ReplyKeyboardRemove().some,
-          )
-      }
-
-    private def sendProjects(chatId: Long): F[Unit] =
-      telegramRepository.findByChatId(chatId).flatMap {
-        case Some(personId) =>
-          employeeRepository.findById(personId).flatMap {
-            case Some(employee) =>
-              projectsRepository.getAll(employee.corporateId).flatMap { projects =>
-                Applicative[F].unit
-              //                case Some(corporate) =>
-              //                  telegramClient.sendMessage(
-              //                    chatId,
-              //                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
-              //                    ReplyKeyboardRemove().some,
-              //                  )
-              //                case _ => Applicative[F].unit
-              }
-            case _ =>
-              telegramClient.sendMessage(
-                chatId,
-                s"Uzr sizni xodimlar orasidan topa olmadik!",
-                ReplyKeyboardRemove().some,
-              )
-          }
-        case _ =>
-          telegramClient.sendMessage(
-            chatId,
-            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
-            ReplyKeyboardRemove().some,
-          )
-      }
+//    private def sendEmployeeInfo(chatId: Long): F[Unit] =
+//      telegramRepository.findByChatId(chatId).flatMap {
+//        case Some(personId) =>
+//          employeeRepository.findById(personId).flatMap {
+//            case Some(employee) =>
+//              for {
+//                _ <- telegramClient.sendMessage(
+//                  chatId,
+//                  s"Assalomu alaykum ${employee.fullName}\nKorporatsiya: ${employee.corporateName}\nLavozim: ${employee.specialtyName}",
+//                  ReplyKeyboardRemove().some,
+//                )
+//              } yield ()
+//            case _ =>
+//              telegramClient.sendMessage(
+//                chatId,
+//                s"Uzr sizni xodimlar orasidan topa olmadik!",
+//                ReplyKeyboardRemove().some,
+//              )
+//          }
+//        case _ =>
+//          telegramClient.sendMessage(
+//            chatId,
+//            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
+//            ReplyKeyboardRemove().some,
+//          )
+//      }
+//
+//    private def sendCorporateInfo(chatId: Long): F[Unit] =
+//      telegramRepository.findByChatId(chatId).flatMap {
+//        case Some(personId) =>
+//          employeeRepository.findById(personId).flatMap {
+//            case Some(employee) =>
+//              corporationsRepository.findById(employee.corporateId).flatMap {
+//                case Some(corporate) =>
+//                  telegramClient.sendMessage(
+//                    chatId,
+//                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
+//                    ReplyKeyboardRemove().some,
+//                  )
+//                case _ => Applicative[F].unit
+//              }
+//            case _ =>
+//              telegramClient.sendMessage(
+//                chatId,
+//                s"Uzr sizni xodimlar orasidan topa olmadik!",
+//                ReplyKeyboardRemove().some,
+//              )
+//          }
+//        case _ =>
+//          telegramClient.sendMessage(
+//            chatId,
+//            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
+//            ReplyKeyboardRemove().some,
+//          )
+//      }
+//
+//    private def sendProjects(chatId: Long): F[Unit] =
+//      telegramRepository.findByChatId(chatId).flatMap {
+//        case Some(personId) =>
+//          employeeRepository.findById(personId).flatMap {
+//            case Some(employee) =>
+//              projectsRepository.getAll(employee.corporateId).flatMap { projects =>
+//                Applicative[F].unit
+//              //                case Some(corporate) =>
+//              //                  telegramClient.sendMessage(
+//              //                    chatId,
+//              //                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
+//              //                    ReplyKeyboardRemove().some,
+//              //                  )
+//              //                case _ => Applicative[F].unit
+//              }
+//            case _ =>
+//              telegramClient.sendMessage(
+//                chatId,
+//                s"Uzr sizni xodimlar orasidan topa olmadik!",
+//                ReplyKeyboardRemove().some,
+//              )
+//          }
+//        case _ =>
+//          telegramClient.sendMessage(
+//            chatId,
+//            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
+//            ReplyKeyboardRemove().some,
+//          )
+//      }
 
     private def saveBotUser(chatId: Long, personId: PersonId): F[Unit] =
       telegramRepository

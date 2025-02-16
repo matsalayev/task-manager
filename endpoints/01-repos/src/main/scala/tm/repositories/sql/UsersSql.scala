@@ -59,7 +59,7 @@ private[repositories] object UsersSql extends Sql[PersonId] {
   val createUser: Command[corporate.User] =
     sql"""
       INSERT INTO users (id, role, phone, asset_id, corporate_id)
-      VALUES $corporateUserCodec
+      VALUES ($corporateUserCodec)
     """.command
 //      .contramap { (u: corporate.User) =>
 //        u.id *: u.role *: u.phone *: u.asset_id *: u.corporate_id *: EmptyTuple

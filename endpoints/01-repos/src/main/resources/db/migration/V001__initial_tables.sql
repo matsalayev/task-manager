@@ -49,7 +49,9 @@ CREATE TABLE corporations (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL,
   name VARCHAR NOT NULL,
   location_id UUID NOT NULL REFERENCES locations (id),
-  asset_id UUID NULL REFERENCES assets (id)
+  asset_id UUID NULL REFERENCES assets (id),
+
+  UNIQUE(name, location_id)
 );
 
 CREATE TABLE users (
@@ -128,86 +130,3 @@ CREATE TABLE telegram_bot_users (
   person_id UUID UNIQUE REFERENCES people (id) NOT NULL,
   chat_id BIGINT UNIQUE NOT NULL
 );
-
-CREATE TABLE create_corporate (
-  chat_id BIGINT UNIQUE NOT NULL,
-  name VARCHAR NULL,
-  photo UUID NULL REFERENCES assets (id),
-  location UUID NULL REFERENCES locations (id)
-);
-
-CREATE TABLE create_user (
-  chat_id BIGINT UNIQUE NOT NULL,
-  full_name VARCHAR NULL,
-  phone VARCHAR NOT NULL UNIQUE,
-  photo UUID NULL REFERENCES assets (id),
-  corporate_id UUID NOT NULL REFERENCES corporations (id)
-);
-
-CREATE TABLE create_employee (
-  chat_id BIGINT UNIQUE NOT NULL,
-  full_name VARCHAR NULL,
-  phone VARCHAR NOT NULL UNIQUE,
-  photo UUID NULL REFERENCES assets (id),
-  specialty UUID NULL REFERENCES specialties (id),
-  corporate_id UUID NOT NULL REFERENCES corporations (id)
-)
-
---
---INSERT INTO people (id, created_at, full_name, gender, date_of_birth)
---VALUES (
---  '370ca333-5f7d-4981-9e25-b7886555c661',
---  now(),
---  'Admin',
---  'male',
---  '2024-01-01'
---);
---
---INSERT INTO people (id, created_at, full_name, gender, date_of_birth)
---VALUES (
---  '521f4e39-95e6-44ea-8406-f5a5cc73144e',
---  now(),
---  'Azizbek Matsalayev',
---  'male',
---  '2003-05-20'
---);
---
---INSERT INTO users (id, role, phone, password)
---VALUES (
---  '370ca333-5f7d-4981-9e25-b7886555c661',
---  'admin',
---  '+998901234567',
---  '$s0$e0801$5JK3Ogs35C2h5htbXQoeEQ==$N7HgNieSnOajn1FuEB7l4PhC6puBSq+e1E8WUaSJcGY='
---);
---
---INSERT INTO locations (id, name, latitude, longitude)
---VALUES (
---  '832a34d2-6d28-4778-85d4-ed18e42b3b01',
---  'Furqat ko`chasi 31',
---  41.552074,
---  60.607359
--- );
---
---INSERT INTO corporations (id, created_at, name, location_id)
---VALUES (
---  '2c0a9567-a36f-48de-9fa4-a233f4be507e',
---  now(),
---  'KV',
---  '832a34d2-6d28-4778-85d4-ed18e42b3b01'
---);
---
---INSERT INTO specialties (id, name)
---VALUES (
---  'e68c531c-332d-4f73-9745-ba2c600b0031',
---  'Backend Developer'
---);
---
---INSERT INTO employees (id, created_at, person_id, corporate_id, specialty_id, phone)
---VALUES (
---  '4add61d1-66f3-4339-8775-67515d86f489',
---  now(),
---  '521f4e39-95e6-44ea-8406-f5a5cc73144e',
---  '2c0a9567-a36f-48de-9fa4-a233f4be507e',
---  'e68c531c-332d-4f73-9745-ba2c600b0031',
---  '+998919991901'
---);

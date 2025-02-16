@@ -10,6 +10,6 @@ case class User(
     id: PersonId,
     role: Role,
     phone: Phone,
-    asset_id: Option[AssetId],
-    corporate_id: CorporateId,
+    assetId: Option[AssetId],
+    corporateId: CorporateId,
   )

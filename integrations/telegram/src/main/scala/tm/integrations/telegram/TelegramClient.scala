@@ -30,7 +30,7 @@ trait TelegramClient[F[_]] {
   def sendMessage(
       chatId: Long,
       text: String,
-      reply_markup: Option[ReplyMarkup] = None,
+      replyMarkup: Option[ReplyMarkup] = None,
       entities: Option[List[MessageEntity]] = None,
     ): F[Unit]
 
