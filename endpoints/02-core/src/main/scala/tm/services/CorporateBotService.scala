@@ -8,6 +8,7 @@ import scala.concurrent.duration.FiniteDuration
 
 import cats.Applicative
 import cats.Monad
+import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.implicits.catsSyntaxApplyOps
 import cats.implicits.catsSyntaxOptionId
@@ -81,6 +82,59 @@ object CorporateBotService {
     )(implicit
       logger: Logger[F]
     ): CorporateBotService[F] = new CorporateBotService[F] {
+    private def menuButtons(company: String): ReplyKeyboardMarkup =
+      ReplyKeyboardMarkup(
+        List(
+          List(
+            KeyboardButton(s"$company \uD83C\uDFE2"),
+            KeyboardButton("Xodimlar \uD83D\uDC65"),
+          ),
+          List(
+            KeyboardButton("Loyihalar \uD83D\uDDC2"),
+            KeyboardButton("Vazifalar \uD83D\uDCCB"),
+            KeyboardButton("Monitoring \uD83D\uDCCA"),
+          ),
+          List(KeyboardButton("Sozlamalar ⚙\uFE0F")),
+        )
+      )
+
+    private val taskButtons = ReplyKeyboardMarkup(
+      List(
+        List(KeyboardButton("Vazifa yaratish \uD83C\uDFAF"), KeyboardButton("Taglar #\uFE0F⃣")),
+        List(KeyboardButton("Menu \uD83C\uDFE0")),
+      )
+    )
+
+    private val projectButtons = ReplyKeyboardMarkup(
+      List(
+        List(KeyboardButton("Loyiha qo'shish \uD83D\uDCDD")),
+        List(KeyboardButton("Menu \uD83C\uDFE0")),
+      )
+    )
+
+    private val settingButtons = ReplyKeyboardMarkup(
+      List(
+        List(KeyboardButton("Telegram kanal ulash \uD83D\uDCE2")),
+        List(KeyboardButton("Hisob ma'lumotlarini yangilash ✏\uFE0F")),
+        List(KeyboardButton("Menu \uD83C\uDFE0")),
+      )
+    )
+
+    private val employeeButtons = ReplyKeyboardMarkup(
+      List(
+        List(KeyboardButton("Lavozimlar \uD83D\uDCBC"), KeyboardButton("Xodim qo'shish ➕")),
+        List(KeyboardButton("Menu \uD83C\uDFE0")),
+      )
+    )
+
+    private val companyButtons = ReplyKeyboardMarkup(
+      List(
+        List(KeyboardButton("E'lon yozish \uD83D\uDCCC")),
+        List(KeyboardButton("Surat \uD83D\uDDBC"), KeyboardButton("Joylashuv \uD83D\uDDFA")),
+        List(KeyboardButton("Menu \uD83C\uDFE0")),
+      )
+    )
+
     override def telegramMessage(update: Update): F[Unit] =
       update match {
         case Update(_, Some(message), _) => handleMessage(message)
@@ -232,7 +286,7 @@ object CorporateBotService {
                 assetOpt <- corporateUser.assetId.traverse(assetsRepository.findAsset)
               } yield (personOpt, corporateOpt, assetOpt.flatten)).flatMap {
                 case (Some(person), Some(corporate), Some(asset)) =>
-                  sendUserInfo(user.id, corporateUser.role, person, corporate, asset)
+                  sendUserInfo(user.id, corporateUser.role, person, corporate.name, asset)
                 case _ => Applicative[F].unit
               }
 
@@ -294,7 +348,7 @@ object CorporateBotService {
                           .findAsset(AssetId(UUID.fromString(photo)))
                           .flatMap(assetOpt =>
                             assetOpt.fold(Applicative[F].unit) { asset =>
-                              sendUserInfo(user.id, role, person, company, asset)
+                              sendUserInfo(user.id, role, person, company.name, asset)
                             }
                           )
                       }
@@ -314,7 +368,7 @@ object CorporateBotService {
         chatId: Long,
         role: Role,
         person: dto.Person,
-        corporate: Corporate,
+        corporateName: NonEmptyString,
         asset: Asset,
       ): F[Unit] =
       s3Client.downloadObject(asset.s3Key.value).compile.to(Array).flatMap { byteArray =>
@@ -328,37 +382,40 @@ object CorporateBotService {
                          |Pinfl: ${person.pinflNumber}
                          |
                          |Lavozim: $role""".stripMargin.some,
-          replyMarkup = ReplyKeyboardMarkup(
-            List(
-              List(
-                KeyboardButton(s"${corporate.name} \uD83C\uDFE2"),
-                KeyboardButton("Xodimlar \uD83D\uDC65"),
-              ),
-              List(
-                KeyboardButton("Loyihalar \uD83D\uDDC2"),
-                KeyboardButton("Vazifalar \uD83D\uDCCB"),
-                KeyboardButton("Monitoring \uD83D\uDCCA"),
-              ),
-              List(KeyboardButton("Sozlamalar ⚙\uFE0F")),
-            )
-          ).some,
+          replyMarkup = menuButtons(corporateName.value).some,
         )
       }
 
-    private def sendCompanySetting(
-        chatId: Long
-      ): F[Unit] =
-      telegramClient.sendMessage(
-        chatId = chatId,
-        text = "test",
-        replyMarkup = ReplyKeyboardMarkup(
-          List(
-            List(KeyboardButton("E'lon yozish \uD83D\uDCCC")),
-            List(KeyboardButton("Surat \uD83D\uDDBC"), KeyboardButton("Joylashuv \uD83D\uDDFA")),
-            List(KeyboardButton("Menu \uD83C\uDFE0")),
-          )
-        ).some,
-      )
+    private def sendCompanySetting(chatId: Long): F[Unit] =
+      (for {
+        personId <- OptionT(telegramRepository.findByChatId(chatId))
+        user <- OptionT(usersRepository.findById(personId))
+        corporate <- OptionT(corporationsRepository.findById(user.corporateId))
+        result <- OptionT.liftF {
+          corporate.photo match {
+            case Some(assetId) =>
+              assetsRepository.findAsset(assetId).flatMap {
+                case Some(asset) =>
+                  s3Client
+                    .downloadObject(asset.s3Key.value)
+                    .compile
+                    .to(Array)
+                    .flatMap(byteArray =>
+                      telegramClient.sendPhoto(
+                        chatId,
+                        byteArray,
+                        caption =
+                          s"Kompaniya nomi: ${corporate.name}\nManzil: ${corporate.locationName}".some,
+                        replyMarkup = companyButtons.some,
+                      )
+                    )
+                case None => Applicative[F].unit
+              }
+            case None =>
+              telegramClient.sendMessage(chatId, user.corporateName.value, companyButtons.some)
+          }
+        }
+      } yield result).getOrElseF(Applicative[F].unit)
 
     private def sendEmployees(
         chatId: Long
@@ -366,12 +423,7 @@ object CorporateBotService {
       telegramClient.sendMessage(
         chatId = chatId,
         text = "test",
-        replyMarkup = ReplyKeyboardMarkup(
-          List(
-            List(KeyboardButton("Lavozimlar \uD83D\uDCBC"), KeyboardButton("Xodim qo'shish ➕")),
-            List(KeyboardButton("Menu \uD83C\uDFE0")),
-          )
-        ).some,
+        replyMarkup = employeeButtons.some,
       )
 
     private def sendSettings(
@@ -380,13 +432,7 @@ object CorporateBotService {
       telegramClient.sendMessage(
         chatId = chatId,
         text = "test",
-        replyMarkup = ReplyKeyboardMarkup(
-          List(
-            List(KeyboardButton("Telegram kanal ulash \uD83D\uDCE2")),
-            List(KeyboardButton("Hisob ma'lumotlarini yangilash ✏\uFE0F")),
-            List(KeyboardButton("Menu \uD83C\uDFE0")),
-          )
-        ).some,
+        replyMarkup = settingButtons.some,
       )
 
     private def sendProjects(
@@ -395,12 +441,7 @@ object CorporateBotService {
       telegramClient.sendMessage(
         chatId = chatId,
         text = "test",
-        replyMarkup = ReplyKeyboardMarkup(
-          List(
-            List(KeyboardButton("Loyiha qo'shish \uD83D\uDCDD")),
-            List(KeyboardButton("Menu \uD83C\uDFE0")),
-          )
-        ).some,
+        replyMarkup = projectButtons.some,
       )
 
     private def sendTasks(
@@ -409,12 +450,7 @@ object CorporateBotService {
       telegramClient.sendMessage(
         chatId = chatId,
         text = "test",
-        replyMarkup = ReplyKeyboardMarkup(
-          List(
-            List(KeyboardButton("Vazifa yaratish \uD83C\uDFAF"), KeyboardButton("Taglar #\uFE0F⃣")),
-            List(KeyboardButton("Menu \uD83C\uDFE0")),
-          )
-        ).some,
+        replyMarkup = taskButtons.some,
       )
 
     private def sendMonitoring(
@@ -429,20 +465,7 @@ object CorporateBotService {
       telegramClient.sendMessage(
         chatId = chatId,
         text = "test",
-        replyMarkup = ReplyKeyboardMarkup(
-          List(
-            List(
-              KeyboardButton(s"Kompaniya \uD83C\uDFE2"),
-              KeyboardButton("Xodimlar \uD83D\uDC65"),
-            ),
-            List(
-              KeyboardButton("Loyihalar \uD83D\uDDC2"),
-              KeyboardButton("Vazifalar \uD83D\uDCCB"),
-              KeyboardButton("Monitoring \uD83D\uDCCA"),
-            ),
-            List(KeyboardButton("Sozlamalar ⚙\uFE0F")),
-          )
-        ).some,
+        replyMarkup = menuButtons(" ").some,
       )
 
     private def handleCallbackData(data: NonEmptyString): F[Unit] = {

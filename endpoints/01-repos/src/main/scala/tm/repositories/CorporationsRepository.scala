@@ -14,7 +14,7 @@ import tm.support.skunk.syntax.all._
 
 trait CorporationsRepository[F[_]] {
   def create(corporate: Corporate): F[Unit]
-  def findById(corporateId: CorporateId): F[Option[Corporate]]
+  def findById(corporateId: CorporateId): F[Option[dto.Corporate]]
   def findByName(name: NonEmptyString): F[Option[Corporate]]
   def update(corporate: Corporate): F[Unit]
   def delete(corporateId: CorporateId): F[Unit]
@@ -33,7 +33,7 @@ object CorporationsRepository {
     override def create(corporate: Corporate): F[Unit] =
       CorporationsSql.insert.execute(corporate)
 
-    override def findById(corporateId: CorporateId): F[Option[Corporate]] =
+    override def findById(corporateId: CorporateId): F[Option[dto.Corporate]] =
       CorporationsSql.findById.queryOption(corporateId)
 
     override def findByName(name: NonEmptyString): F[Option[Corporate]] =

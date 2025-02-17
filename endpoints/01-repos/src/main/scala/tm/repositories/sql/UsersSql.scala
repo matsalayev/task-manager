@@ -9,13 +9,19 @@ import tm.domain.PersonId
 import tm.domain.auth.AccessCredentials
 import tm.domain.auth.AuthedUser.User
 import tm.domain.corporate
+import tm.repositories.dto
 import tm.support.skunk.Sql
+import tm.support.skunk.codecs.nes
 import tm.support.skunk.codecs.phone
+import tm.support.skunk.codecs.zonedDateTime
 
 private[repositories] object UsersSql extends Sql[PersonId] {
   private val codec = (id *: role *: phone).to[User]
   private val corporateUserCodec =
     (id *: role *: phone *: AssetsSql.id.opt *: CorporationsSql.id).to[corporate.User]
+  private val dtoUserCodec =
+    (id *: zonedDateTime *: nes *: CorporationsSql.id *: nes *: role *: AssetsSql.id.opt *: phone)
+      .to[dto.User]
 
   private val personDecoder: Decoder[AccessCredentials[User]] =
     (codec *: passwordHash).map {
@@ -45,6 +51,20 @@ private[repositories] object UsersSql extends Sql[PersonId] {
         phone = $phone
         AND deleted_at IS NULL
     """.query(corporateUserCodec)
+
+  val findById: Query[PersonId, dto.User] =
+    sql"""
+      SELECT
+        u.id, u.created_at, p.full_name, u.corporate_id, c.name, u.role, u.asset_id, u.phone
+      FROM users u
+      INNER JOIN people p
+        ON p.id = u.id
+      INNER JOIN corporates c
+        ON c.id = u.corporate_id
+      WHERE
+        u.id = $id
+        AND deleted_at IS NULL
+    """.query(dtoUserCodec)
 
   val insert: Command[AccessCredentials[User]] =
     sql"""
