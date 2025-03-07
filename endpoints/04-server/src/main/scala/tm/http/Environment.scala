@@ -14,10 +14,12 @@ case class Environment[F[_]: Async](
     config: HttpServerConfig,
     telegramCorporateBot: TelegramBotsConfig,
     telegramEmployeeBot: TelegramBotsConfig,
+    telegramLiteBot: TelegramBotsConfig,
     middlewares: Middlewares[F],
     services: Services[F],
     s3Client: S3Client[F],
     telegramClientEmployee: TelegramClient[F],
     telegramClientCorporate: TelegramClient[F],
+    telegramClientLite: TelegramClient[F],
     redis: RedisClient[F],
   )

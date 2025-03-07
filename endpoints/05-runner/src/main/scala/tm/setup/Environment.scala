@@ -33,6 +33,7 @@ case class Environment[F[_]: Async: MonadThrow: Logger](
     redis: RedisClient[F],
     telegramClientEmployee: TelegramClient[F],
     telegramClientCorporate: TelegramClient[F],
+    telegramClientLite: TelegramClient[F],
   ) {
   lazy val jobsEnabled: Boolean = config.jobs.enabled
   lazy val toServer: ServerEnvironment[F] =
@@ -43,9 +44,11 @@ case class Environment[F[_]: Async: MonadThrow: Logger](
       s3Client = s3Client,
       telegramClientEmployee = telegramClientEmployee,
       telegramClientCorporate = telegramClientCorporate,
+      telegramClientLite = telegramClientLite,
       redis = redis,
       telegramCorporateBot = config.tmCorporateBot,
       telegramEmployeeBot = config.tmEmployeeBot,
+      telegramLiteBot = config.tmLiteBot,
     )
   lazy val toJobs: JobsEnvironment[F] =
     JobsEnvironment(
@@ -73,6 +76,9 @@ object Environment {
       telegramBrokerEmployee <- HttpClientFs2Backend.resource[F]().map { implicit backend =>
         TelegramClient.make[F](config.tmEmployeeBot)
       }
+      telegramBrokerLite <- HttpClientFs2Backend.resource[F]().map { implicit backend =>
+        TelegramClient.make[F](config.tmLiteBot)
+      }
       services = Services
         .make[F](
           config.auth,
@@ -81,6 +87,7 @@ object Environment {
           s3Client,
           telegramBrokerCorporate,
           telegramBrokerEmployee,
+          telegramBrokerLite,
         )
       middleware = Middlewares.make[F](config.auth, redis)
     } yield Environment[F](
@@ -92,5 +99,6 @@ object Environment {
       redis,
       telegramBrokerCorporate,
       telegramBrokerEmployee,
+      telegramBrokerLite,
     )
 }

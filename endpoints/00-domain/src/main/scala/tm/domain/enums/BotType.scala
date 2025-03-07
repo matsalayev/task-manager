@@ -7,5 +7,6 @@ sealed trait BotType extends Snakecase
 object BotType extends Enum[BotType] with CirceEnum[BotType] {
   case object Employee extends BotType
   case object Corporate extends BotType
+  case object Lite extends BotType
   override def values: IndexedSeq[BotType] = findValues
 }

@@ -309,7 +309,7 @@ object CorporateBotService {
                 user.id,
                 s"$msg\n\n$ask",
                 entities = List(
-                  MessageEntity(MessageEntityType.Italic, msg.length + 2, ask.length),
+                  MessageEntity(MessageEntityType.Italic, msg.length + 2, ask.length)
                 ).some,
               )
             case _ => Applicative[F].unit

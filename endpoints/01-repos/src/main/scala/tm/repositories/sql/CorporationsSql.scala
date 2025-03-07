@@ -4,17 +4,19 @@ import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
 import skunk.codec.all.float8
 import skunk.implicits._
+
 import tm.domain.CorporateId
 import tm.domain.corporate.Corporate
+import tm.repositories.dto
 import tm.support.skunk.Sql
 import tm.support.skunk.codecs.nes
 import tm.support.skunk.codecs.zonedDateTime
-import tm.repositories.dto
 private[repositories] object CorporationsSql extends Sql[CorporateId] {
   private val codec: Codec[Corporate] =
     (id *: zonedDateTime *: nes *: LocationsSql.id *: AssetsSql.id.opt).to[Corporate]
   private val dtoCodec: Codec[dto.Corporate] =
-    (id *: zonedDateTime *: nes *: LocationsSql.id *: nes *: float8 *: float8 *: AssetsSql.id.opt).to[dto.Corporate]
+    (id *: zonedDateTime *: nes *: LocationsSql.id *: nes *: float8 *: float8 *: AssetsSql.id.opt)
+      .to[dto.Corporate]
 
   val insert: Command[Corporate] =
     sql"""INSERT INTO corporations VALUES ($codec)""".command

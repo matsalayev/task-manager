@@ -2,10 +2,12 @@ package tm.repositories
 
 import cats.effect.Resource
 import skunk._
+
 import tm.Phone
+import tm.domain.PersonId
 import tm.domain.auth.AccessCredentials
 import tm.domain.auth.AuthedUser.User
-import tm.domain.{PersonId, corporate}
+import tm.domain.corporate
 import tm.repositories.sql.UsersSql
 import tm.support.skunk.syntax.all._
 

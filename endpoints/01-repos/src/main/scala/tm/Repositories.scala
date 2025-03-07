@@ -15,6 +15,7 @@ case class Repositories[F[_]](
     corporationsRepository: CorporationsRepository[F],
     projectsRepository: ProjectsRepository[F],
     tasksRepository: TasksRepository[F],
+    liteTasksRepository: LiteTasksRepository[F],
   )
 
 object Repositories {
@@ -31,5 +32,6 @@ object Repositories {
       corporationsRepository = CorporationsRepository.make[F],
       projectsRepository = ProjectsRepository.make[F],
       tasksRepository = TasksRepository.make[F],
+      liteTasksRepository = LiteTasksRepository.make[F],
     )
 }
