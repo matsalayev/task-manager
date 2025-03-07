@@ -5,7 +5,7 @@ CREATE TYPE GENDER AS ENUM (
 
 CREATE TYPE ROLE AS ENUM (
 	'director',
-	'manager',
+	'manager'
 );
 
 CREATE TYPE TASK_STATUS AS ENUM (
