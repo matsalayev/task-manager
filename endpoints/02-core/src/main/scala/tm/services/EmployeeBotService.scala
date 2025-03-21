@@ -92,7 +92,7 @@ object EmployeeBotService {
 
     private def handleCallbackQuery(callbackQuery: CallbackQuery): F[Unit] =
       callbackQuery match {
-        case CallbackQuery(Some(user), _, Some(message), Some(data)) =>
+        case CallbackQuery(_, Some(user), _, Some(message), Some(data)) =>
           handleCallbackData(data)
         case _ => logger.warn("unknown callback query structure")
       }

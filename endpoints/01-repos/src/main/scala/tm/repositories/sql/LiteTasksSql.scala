@@ -12,19 +12,19 @@ import tm.support.skunk.codecs.nes
 import tm.support.skunk.codecs.zonedDateTime
 
 private[repositories] object LiteTasksSql extends Sql[TaskId] {
-  private val codec: Codec[LiteTask] =
+  private[repositories] val codec: Codec[LiteTask] =
     (id *: zonedDateTime *: int8 *: FoldersSql.id *: nes *: taskStatus *: zonedDateTime.opt *: zonedDateTime.opt *: int8)
       .to[LiteTask]
 
   val insert: Command[LiteTask] =
     sql"""INSERT INTO lite_tasks VALUES ($codec)""".command
 
-  val getAll: Query[FolderId, LiteTask] =
+  def getAll(folderId: FolderId): AppliedFragment =
     sql"""
-      SELECT *
+      SELECT *, COUNT(*) OVER()
       FROM lite_tasks t
       WHERE t.folder_id = ${FoldersSql.id}
-    """.query(codec)
+    """.apply(folderId)
 
   val findById: Query[TaskId, LiteTask] =
     sql"""SELECT * FROM lite_tasks WHERE id = $id LIMIT 1""".query(codec)

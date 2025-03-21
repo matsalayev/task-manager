@@ -12,10 +12,13 @@ import org.http4s.HttpRoutes
 import org.http4s.circe.JsonDecoder
 import org.http4s.circe._
 import org.typelevel.log4cats.Logger
+
 import tm.domain.auth.AuthedUser
 import tm.domain.enums.BotType
 import tm.domain.telegram.Update
-import tm.services.{CorporateBotService, EmployeeBotService, LiteBotService}
+import tm.services.CorporateBotService
+import tm.services.EmployeeBotService
+import tm.services.LiteBotService
 import tm.support.http4s.utils.Routes
 import tm.syntax.all.circeSyntaxJsonDecoderOps
 

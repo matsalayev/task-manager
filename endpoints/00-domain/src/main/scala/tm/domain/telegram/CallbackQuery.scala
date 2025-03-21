@@ -7,6 +7,7 @@ import io.circe.refined._
 
 @ConfiguredJsonCodec
 case class CallbackQuery(
+    id: String,
     from: Option[User],
     text: Option[String],
     message: Option[Message],
