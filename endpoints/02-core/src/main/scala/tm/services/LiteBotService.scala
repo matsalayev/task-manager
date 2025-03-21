@@ -44,21 +44,19 @@ object LiteBotService {
     )(implicit
       logger: Logger[F]
     ): LiteBotService[F] = new LiteBotService[F] {
-    private val regexFolder =
-      """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(folder)""".r
-    private val regexTask =
-      """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(task)""".r
-    private val regexCreateTask =
-      """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(createTask)_(\d+)_(\d+)""".r
-    private val regexCreateFolder = """(createFolder)_(\d+)""".r
-    private val regexBackToFolders = """(goBackToFolders)_(\d+)""".r
-    private val regexMessageWithPage = """(\d+)_(\d+)""".r
-    private val regexExitTask =
-      """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(goBackToTasks)""".r
-    private val regexPaginationError = """(pagination)_(.+)""".r
-    private val regexPaginationFolder = """(pagination)_(folder)_(\d+)""".r
-    private val regexPaginationTask =
-      """(pagination)_([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(\d+)""".r
+    private val regexDigits = """(\d+)_(\d+)""".r
+    private val regexActionWithInfo = """(\S+)_(.+)""".r
+    private val regexActionWithPage = """(\S+)_(\d+)""".r
+    private val regexActionsWithPage = """(\S+)_(\S+)_(\d+)""".r
+    private val regexUUIDWithActionAndPage =
+      """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(\S+)_(\d+)""".r
+    private val regexActionAndUUIDWithDigits =
+      """(\S+)_([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(\d+)_(\d+)""".r
+    private val regexUUIDWithActionAndDigits =
+      """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(\S+)_(\d+)_(\d+)""".r
+    private val regexUUIDWithActionAndDigitsAndPage =
+      """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(\S+)_(\d+)_(\d+)_(\d+)""".r
+
     private val limit = 5
 
     override def telegramMessage(update: Update): F[Unit] =
@@ -88,7 +86,7 @@ object LiteBotService {
             isFolder <- redisClient.get(user.id.toString + "+inputFolder")
             isTask <- redisClient.get(user.id.toString + "+inputTask")
             _ <- isFolder.fold(Applicative[F].unit) {
-              case regexMessageWithPage(oldMessageId, page) =>
+              case regexDigits(oldMessageId, page) =>
                 createFolder(
                   user.id,
                   oldMessageId.toLong,
@@ -98,7 +96,13 @@ object LiteBotService {
                 )
             }
             _ <- isTask.fold(Applicative[F].unit) {
-              case regexCreateTask(folderId, "createTask", oldMessageId, page) =>
+              case regexUUIDWithActionAndDigitsAndPage(
+                     folderId,
+                     "createTask",
+                     oldMessageId,
+                     page,
+                     folderPage,
+                   ) =>
                 createTask(
                   user.id,
                   oldMessageId.toLong,
@@ -106,6 +110,7 @@ object LiteBotService {
                   FolderId(UUID.fromString(folderId)),
                   input,
                   page.toInt,
+                  folderPage.toInt,
                 )
 
               case t => logger.info(s"$t")
@@ -129,10 +134,16 @@ object LiteBotService {
         data: NonEmptyString,
       ): F[Unit] =
       data.value match {
-        case regexFolder(folderId, "folder") =>
-          enterFolder(user.id, message.messageId, FolderId(UUID.fromString(folderId)), 1)
+        case regexUUIDWithActionAndPage(folderId, "folder", page) =>
+          enterFolder(
+            user.id,
+            message.messageId,
+            FolderId(UUID.fromString(folderId)),
+            1,
+            page.toInt,
+          )
             .flatMap(_ => redisClient.del(s"${user.id}+inputTask"))
-        case regexCreateFolder("createFolder", page) =>
+        case regexActionWithPage("createFolder", page) =>
           for {
             _ <- telegramClient.editMessageText(
               user.id,
@@ -152,9 +163,9 @@ object LiteBotService {
               1.day,
             )
           } yield ()
-        case regexBackToFolders("goBackToFolders", page) =>
+        case regexActionWithPage("goBackToFolders", page) =>
           showFolders(user.id, message.messageId, page.toInt)
-        case regexCreateTask(folderId, "createTask", msgId, page) =>
+        case regexUUIDWithActionAndDigitsAndPage(folderId, "createTask", msgId, page, folderPage) =>
           for {
             _ <- telegramClient.editMessageText(
               user.id,
@@ -170,11 +181,11 @@ object LiteBotService {
             )
             _ <- redisClient.put(
               s"${user.id}+inputTask",
-              folderId + "_createTask_" + msgId + "_" + page,
+              folderId + "_createTask_" + msgId + "_" + page + "_" + folderPage,
               1.day,
             )
           } yield ()
-        case regexTask(taskIdStr, "task") =>
+        case regexUUIDWithActionAndDigits(taskIdStr, "task", page, folderPage) =>
           val taskId = TaskId(UUID.fromString(taskIdStr))
           liteTasksRepository.findById(taskId).flatMap { taskOpt =>
             taskOpt.fold(
@@ -187,7 +198,12 @@ object LiteBotService {
                     InlineKeyboardButton("⏩", task.id.toString + "_next"),
                     InlineKeyboardButton("*⃣", task.id.toString + "_actions"),
                   ),
-                  List(InlineKeyboardButton("↩\uFE0F", task.folderId.toString + "_goBackToTasks")),
+                  List(
+                    InlineKeyboardButton(
+                      "↩\uFE0F",
+                      task.folderId.toString + s"_goBackToTasks_${page}_$folderPage",
+                    )
+                  ),
                 )
               )
               val emoji = task.status match {
@@ -205,21 +221,28 @@ object LiteBotService {
             }
           }
 
-        case regexExitTask(folderId, "goBackToTasks") =>
-          enterFolder(user.id, message.messageId, FolderId(UUID.fromString(folderId)), 1)
-
-        case regexPaginationFolder("pagination", "folder", page) =>
-          showFolders(user.id, message.messageId, page.toInt)
-
-        case regexPaginationTask("pagination", folderId, page) =>
+        case regexUUIDWithActionAndDigits(folderId, "goBackToTasks", page, folderPage) =>
           enterFolder(
             user.id,
             message.messageId,
             FolderId(UUID.fromString(folderId)),
             page.toInt,
+            folderPage.toInt,
           )
 
-        case regexPaginationError("pagination", action) =>
+        case regexActionsWithPage("pagination", "folder", page) =>
+          showFolders(user.id, message.messageId, page.toInt)
+
+        case regexActionAndUUIDWithDigits("pagination", folderId, page, folderPage) =>
+          enterFolder(
+            user.id,
+            message.messageId,
+            FolderId(UUID.fromString(folderId)),
+            page.toInt,
+            folderPage.toInt,
+          )
+
+        case regexActionWithInfo("pagination", action) =>
           telegramClient.answerCallbackQuery(
             callbackQueryId = callbackQueryId,
             text = action,
@@ -249,7 +272,10 @@ object LiteBotService {
       folders <- liteTasksRepository.getAllFolders(chatId, 5, 1)
       buttons = folders.data.map { folder =>
         List(
-          InlineKeyboardButton("\uD83D\uDCC2 " + folder.name.value, folder.id.toString + "_folder")
+          InlineKeyboardButton(
+            "\uD83D\uDCC2 " + folder.name.value,
+            folder.id.toString + "_folder_1",
+          )
         )
       }
       total = folders.total / limit + 1
@@ -280,7 +306,7 @@ object LiteBotService {
         List(
           InlineKeyboardButton(
             "\uD83D\uDCC2 " + folder.name.value,
-            folder.id.toString + "_folder",
+            folder.id.toString + "_folder_" + page,
           )
         )
       }
@@ -337,6 +363,7 @@ object LiteBotService {
         messageId: Long,
         folderId: FolderId,
         page: Int,
+        folderPage: Int,
       ): F[Unit] =
       for {
         tasks <- liteTasksRepository.getAll(folderId, limit, page)
@@ -348,7 +375,12 @@ object LiteBotService {
             case TaskStatus.Testing => "⛓\uFE0F\u200D\uD83D\uDCA5 "
             case _ => ""
           }
-          List(InlineKeyboardButton(emoji + task.name.value, task.id.toString + "_task"))
+          List(
+            InlineKeyboardButton(
+              emoji + task.name.value,
+              task.id.toString + s"_task_${page}_$folderPage",
+            )
+          )
         }
         _ <- telegramClient.editMessageText(
           chatId,
@@ -357,11 +389,11 @@ object LiteBotService {
         )
         total = tasks.total / limit + 1
         previousPage =
-          if (page - 1 > 0) s"pagination_${folderId.toString}_${page - 1}"
+          if (page - 1 > 0) s"pagination_${folderId.toString}_${page - 1}_$folderPage"
           else "pagination_Sahifa mavjud emas!"
         currentPage = s"pagination_Siz $total dan $page-sahifadasiz"
         nextPage =
-          if (page + 1 <= total) s"pagination_${folderId.toString}_${page + 1}"
+          if (page + 1 <= total) s"pagination_${folderId.toString}_${page + 1}_$folderPage"
           else "pagination_Sahifani mavjud emas!"
         _ <- telegramClient.editMessageReplyMarkup(
           chatId,
@@ -374,10 +406,10 @@ object LiteBotService {
                 InlineKeyboardButton("➡\uFE0F", nextPage),
               ) :+
               List(
-                InlineKeyboardButton("↩\uFE0F", s"goBackToFolders_$page"),
+                InlineKeyboardButton("↩\uFE0F", s"goBackToFolders_$folderPage"),
                 InlineKeyboardButton(
                   "➕",
-                  folderId.toString + "_createTask_" + messageId + "_" + page,
+                  folderId.toString + "_createTask_" + messageId + "_" + page + "_" + folderPage,
                 ),
               )
           ).some,
@@ -391,6 +423,7 @@ object LiteBotService {
         folderId: FolderId,
         taskName: NonEmptyString,
         page: Int,
+        folderPage: Int,
       ): F[Unit] =
       for {
         _ <- telegramClient.deleteMessage(chatId = chatId, messageId = newMessageId)
@@ -410,7 +443,7 @@ object LiteBotService {
           )
         )
         _ <- redisClient.del(chatId.toString + "+inputTask")
-        _ <- enterFolder(chatId, oldMessageId, folderId, page)
+        _ <- enterFolder(chatId, oldMessageId, folderId, page, folderPage)
       } yield ()
   }
 }
