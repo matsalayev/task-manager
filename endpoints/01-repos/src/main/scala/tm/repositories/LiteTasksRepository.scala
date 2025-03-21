@@ -3,27 +3,22 @@ package tm.repositories
 import cats.effect.Resource
 import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
-
-import tm.domain.ProjectId
-import tm.domain.TagId
-import tm.domain.TaskId
+import tm.domain.{FolderId, ProjectId, TagId, TaskId}
+import tm.domain.lite.{Folder, LiteTask}
 import tm.domain.task.Tag
 import tm.domain.task.Task
-import tm.repositories.sql.TagsSql
-import tm.repositories.sql.TasksSql
+import tm.repositories.sql.{FoldersSql, LiteTasksSql, TagsSql, TasksSql}
 import tm.support.skunk.syntax.all._
 
 trait LiteTasksRepository[F[_]] {
-  def create(task: Task): F[Unit]
-  def getAll(projectId: ProjectId): F[List[dto.Task]]
-  def findById(taskId: TaskId): F[Option[Task]]
-  def findByName(name: NonEmptyString): F[Option[Task]]
-  def update(task: Task): F[Unit]
+  def create(task: LiteTask): F[Unit]
+  def getAll(folderId: FolderId): F[List[LiteTask]]
+  def findById(taskId: TaskId): F[Option[LiteTask]]
+  def update(task: LiteTask): F[Unit]
   def delete(taskId: TaskId): F[Unit]
-  def createTag(tag: Tag): F[Unit]
-  def findTagById(tagId: TagId): F[Option[Tag]]
-  def findTagByName(name: NonEmptyString): F[Option[Tag]]
-  def deleteTag(tagId: TagId): F[Unit]
+  def createFolder(folder: Folder): F[Unit]
+  def getAllFolders(chatId: Long): F[List[Folder]]
+  def deleteFolder(id: FolderId): F[Unit]
 }
 
 object LiteTasksRepository {
@@ -31,34 +26,28 @@ object LiteTasksRepository {
       implicit
       session: Resource[F, Session[F]]
     ): LiteTasksRepository[F] = new LiteTasksRepository[F] {
-    override def create(Task: Task): F[Unit] =
-      TasksSql.insert.execute(Task)
+    override def create(Task: LiteTask): F[Unit] =
+      LiteTasksSql.insert.execute(Task)
 
-    override def getAll(projectId: ProjectId): F[List[dto.Task]] =
-      TasksSql.getAll.queryList(projectId)
+    override def getAll(folderId: FolderId): F[List[LiteTask]] =
+      LiteTasksSql.getAll.queryList(folderId)
 
-    override def findById(taskId: TaskId): F[Option[Task]] =
-      TasksSql.findById.queryOption(taskId)
+    override def findById(taskId: TaskId): F[Option[LiteTask]] =
+      LiteTasksSql.findById.queryOption(taskId)
 
-    override def findByName(name: NonEmptyString): F[Option[Task]] =
-      TasksSql.findByName.queryOption(name)
-
-    override def update(Task: Task): F[Unit] =
-      TasksSql.update.execute(Task)
+    override def update(task: LiteTask): F[Unit] =
+      LiteTasksSql.update.execute(task)
 
     override def delete(taskId: TaskId): F[Unit] =
-      TasksSql.delete.execute(taskId)
+      LiteTasksSql.delete.execute(taskId)
 
-    override def createTag(tag: Tag): F[Unit] =
-      TagsSql.insert.execute(tag)
+    override def createFolder(folder: Folder): F[Unit] =
+      FoldersSql.insert.execute(folder)
 
-    override def findTagById(tagId: TagId): F[Option[Tag]] =
-      TagsSql.findById.queryOption(tagId)
+    override def getAllFolders(chatId: Long): F[List[Folder]] =
+      FoldersSql.getAll.queryList(chatId)
 
-    override def findTagByName(name: NonEmptyString): F[Option[Tag]] =
-      TagsSql.findByName.queryOption(name)
-
-    override def deleteTag(tagId: TagId): F[Unit] =
-      TagsSql.delete.execute(tagId)
+    override def deleteFolder(id: FolderId): F[Unit] =
+      FoldersSql.delete.execute(id)
   }
 }

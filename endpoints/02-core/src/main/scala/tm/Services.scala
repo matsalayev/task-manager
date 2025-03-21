@@ -64,7 +64,8 @@ object Services {
         s3Client,
         redis,
       ),
-      liteBotService = LiteBotService.make[F](telegramClientLite, repositories.liteTasksRepository),
+      liteBotService =
+        LiteBotService.make[F](telegramClientLite, redis, repositories.liteTasksRepository),
     )
   }
 }

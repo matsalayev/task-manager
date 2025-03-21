@@ -25,6 +25,7 @@ object HttpModule {
         new TelegramBotsRoutes[F](
           env.services.corporateBotService,
           env.services.employeeBotService,
+          env.services.liteBotService,
           env.telegramCorporateBot.webhookSecret,
         ),
         new AuthRoutes[F](env.services.auth),

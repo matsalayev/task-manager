@@ -1,79 +1,47 @@
 package tm.repositories.sql
 
-import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
+import skunk.codec.all.int8
 import skunk.implicits._
 
-import tm.domain.ProjectId
+import tm.domain.FolderId
 import tm.domain.TaskId
-import tm.domain.task.Task
-import tm.repositories.dto
+import tm.domain.lite.LiteTask
 import tm.support.skunk.Sql
 import tm.support.skunk.codecs.nes
 import tm.support.skunk.codecs.zonedDateTime
 
 private[repositories] object LiteTasksSql extends Sql[TaskId] {
-  private val codec: Codec[Task] =
-    (id *: zonedDateTime *: EmployeesSql.id *: ProjectsSql.id *: nes *: nes.opt *:
-      TagsSql.id.opt *: AssetsSql.id.opt *: taskStatus *: zonedDateTime.opt)
-      .to[Task]
+  private val codec: Codec[LiteTask] =
+    (id *: zonedDateTime *: int8 *: FoldersSql.id *: nes *: taskStatus *: zonedDateTime.opt *: zonedDateTime.opt *: int8)
+      .to[LiteTask]
 
-  private val dtoCodec: Codec[dto.Task] =
-    (id *: zonedDateTime *: nes *: ProjectsSql.id *: nes *: nes *: nes.opt *:
-      nes.opt *: nes.opt *: AssetsSql.id.opt *: taskStatus *: zonedDateTime.opt)
-      .to[dto.Task]
+  val insert: Command[LiteTask] =
+    sql"""INSERT INTO lite_tasks VALUES ($codec)""".command
 
-  val insert: Command[Task] =
-    sql"""INSERT INTO tasks VALUES ($codec)""".command
-
-  val getAll: Query[ProjectId, dto.Task] =
+  val getAll: Query[FolderId, LiteTask] =
     sql"""
-      SELECT
-        t.id,
-        t.created_at,
-        p.full_name,
-        t.project_id,
-        pr.name,
-        t.name,
-        t.description,
-        tag.name,
-        tag.color,
-        t.asset_id,
-        t.status,
-        t.deadline
-      FROM tasks t
-      INNER JOIN projects pr
-        ON pr.id = t.project_id
-      INNER JOIN tags tag
-        ON tag.id = t.tag_id
-      INNER JOIN employees e
-        ON e.id = t.created_by
-      INNER JOIN people p
-        ON p.id = e.person_id
-      WHERE t.project_id = ${ProjectsSql.id}
-    """ query dtoCodec
+      SELECT *
+      FROM lite_tasks t
+      WHERE t.folder_id = ${FoldersSql.id}
+    """.query(codec)
 
-  val findById: Query[TaskId, Task] =
-    sql"""SELECT * FROM tasks WHERE id = $id LIMIT 1""".query(codec)
+  val findById: Query[TaskId, LiteTask] =
+    sql"""SELECT * FROM lite_tasks WHERE id = $id LIMIT 1""".query(codec)
 
-  val findByName: Query[NonEmptyString, Task] =
-    sql"""SELECT * FROM tasks WHERE name = $nes LIMIT 1""".query(codec)
-
-  val update: Command[Task] =
-    sql"""UPDATE tasks
+  val update: Command[LiteTask] =
+    sql"""UPDATE lite_tasks
       SET
         name = $nes,
-        description = ${nes.opt},
-        tag_id = ${TagsSql.id.opt},
-        asset_id = ${AssetsSql.id.opt},
         status = $taskStatus,
-        deadline = ${zonedDateTime.opt}
+        started_at = ${zonedDateTime.opt}
+        finished_at = ${zonedDateTime.opt}
       WHERE id = $id"""
       .command
-      .contramap { (t: Task) =>
-        t.name *: t.description *: t.tagId *: t.photo *: t.status *: t.deadline *: t.id *: EmptyTuple
+      .contramap { (t: LiteTask) =>
+        t.name *: t.status *: t.startedAt *: t.finishedAt *: t.id *: EmptyTuple
       }
 
   val delete: Command[TaskId] =
-    sql"""DELETE FROM tasks WHERE id = $id""".command
+    sql"""DELETE FROM lite_tasks WHERE id = $id""".command
 }
