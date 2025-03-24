@@ -34,12 +34,13 @@ private[repositories] object LiteTasksSql extends Sql[TaskId] {
       SET
         name = $nes,
         status = $taskStatus,
-        started_at = ${zonedDateTime.opt}
-        finished_at = ${zonedDateTime.opt}
+        started_at = ${zonedDateTime.opt},
+        finished_at = ${zonedDateTime.opt},
+        duration = $int8
       WHERE id = $id"""
       .command
       .contramap { (t: LiteTask) =>
-        t.name *: t.status *: t.startedAt *: t.finishedAt *: t.id *: EmptyTuple
+        t.name *: t.status *: t.startedAt *: t.finishedAt *: t.duration *: t.id *: EmptyTuple
       }
 
   val delete: Command[TaskId] =

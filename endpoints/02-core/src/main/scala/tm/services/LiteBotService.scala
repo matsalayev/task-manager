@@ -1,5 +1,6 @@
 package tm.services
 
+import java.time.Duration
 import java.util.UUID
 
 import scala.concurrent.duration.DurationInt
@@ -31,6 +32,7 @@ import tm.integrations.telegram.domain.ReplyMarkup.ReplyKeyboardMarkup
 import tm.repositories.LiteTasksRepository
 import tm.support.redis.RedisClient
 import tm.utils.ID
+import tm.utils.Regex._
 
 trait LiteBotService[F[_]] {
   def telegramMessage(update: Update): F[Unit]
@@ -44,33 +46,19 @@ object LiteBotService {
     )(implicit
       logger: Logger[F]
     ): LiteBotService[F] = new LiteBotService[F] {
-    private val regexDigits = """(\d+)_(\d+)""".r
-    private val regexActionWithInfo = """(\S+)_(.+)""".r
-    private val regexActionWithPage = """(\S+)_(\d+)""".r
-    private val regexActionsWithPage = """(\S+)_(\S+)_(\d+)""".r
-    private val regexUUIDWithActionAndPage =
-      """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(\S+)_(\d+)""".r
-    private val regexActionAndUUIDWithDigits =
-      """(\S+)_([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(\d+)_(\d+)""".r
-    private val regexUUIDWithActionAndDigits =
-      """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(\S+)_(\d+)_(\d+)""".r
-    private val regexUUIDWithActionAndDigitsAndPage =
-      """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})_(\S+)_(\d+)_(\d+)_(\d+)""".r
-
     private val limit = 5
 
     override def telegramMessage(update: Update): F[Unit] =
       update match {
-        case Update(_, Some(message), _) => handleMessage(message)
-        case Update(_, _, Some(callbackQuery)) => handleCallbackQuery(callbackQuery)
-        case _ => logger.info("unknown update type")
-      }
-
-    private def handleMessage(message: Message): F[Unit] =
-      message match {
-        case Message(messageId, Some(user), Some(text), None, None, None, None, None) =>
+        case Update(
+               _,
+               Some(Message(messageId, Some(user), Some(text), None, None, None, None, None)),
+               _,
+             ) =>
           handleTextMessage(messageId, user, text)
-        case _ => logger.info("undefined behaviour for customer bot")
+        case Update(_, _, Some(CallbackQuery(id, Some(user), _, Some(message), Some(data)))) =>
+          handleCallbackData(id, user, message, data)
+        case _ => logger.info("unknown update type")
       }
 
     private def handleTextMessage(
@@ -120,13 +108,6 @@ object LiteBotService {
         case _ => logger.info("unknown update type")
       }
 
-    private def handleCallbackQuery(callbackQuery: CallbackQuery): F[Unit] =
-      callbackQuery match {
-        case CallbackQuery(id, Some(user), _, Some(message), Some(data)) =>
-          handleCallbackData(id, user, message, data)
-        case _ => logger.warn("unknown callback query structure")
-      }
-
     private def handleCallbackData(
         callbackQueryId: String,
         user: User,
@@ -134,15 +115,6 @@ object LiteBotService {
         data: NonEmptyString,
       ): F[Unit] =
       data.value match {
-        case regexUUIDWithActionAndPage(folderId, "folder", page) =>
-          enterFolder(
-            user.id,
-            message.messageId,
-            FolderId(UUID.fromString(folderId)),
-            1,
-            page.toInt,
-          )
-            .flatMap(_ => redisClient.del(s"${user.id}+inputTask"))
         case regexActionWithPage("createFolder", page) =>
           for {
             _ <- telegramClient.editMessageText(
@@ -163,8 +135,94 @@ object LiteBotService {
               1.day,
             )
           } yield ()
+
         case regexActionWithPage("goBackToFolders", page) =>
           showFolders(user.id, message.messageId, page.toInt)
+
+        case regexUUIDWithActionAndPage(folderId, "folder", page) =>
+          showTasks(
+            user.id,
+            message.messageId,
+            FolderId(UUID.fromString(folderId)),
+            1,
+            page.toInt,
+          )
+            .flatMap(_ => redisClient.del(s"${user.id}+inputTask"))
+
+        case regexActionWithInfo("pagination", action) =>
+          telegramClient.answerCallbackQuery(
+            callbackQueryId = callbackQueryId,
+            text = action,
+            showAlert = true,
+            cache_time = 3,
+          )
+
+        case regexActionsWithPage("pagination", "folder", page) =>
+          showFolders(user.id, message.messageId, page.toInt)
+
+        case regexActionAndUUIDWithDigits("pagination", folderId, page, folderPage) =>
+          showTasks(
+            user.id,
+            message.messageId,
+            FolderId(UUID.fromString(folderId)),
+            page.toInt,
+            folderPage.toInt,
+          )
+
+        case regexUUIDWithActionAndDigits(taskIdStr, "task", page, folderPage) =>
+          enterTask(
+            user.id,
+            TaskId(UUID.fromString(taskIdStr)),
+            message.messageId,
+            page.toInt,
+            folderPage.toInt,
+          )
+
+        case regexUUIDWithActionAndDigits(folderId, "goBackToTasks", page, folderPage) =>
+          showTasks(
+            user.id,
+            message.messageId,
+            FolderId(UUID.fromString(folderId)),
+            page.toInt,
+            folderPage.toInt,
+          )
+
+        case regexUUIDWithActionAndDigits(taskId, "play", page, folderPage) =>
+          playTask(
+            user.id,
+            TaskId(UUID.fromString(taskId)),
+            message.messageId,
+            page.toInt,
+            folderPage.toInt,
+          )
+
+        case regexUUIDWithActionAndDigits(taskId, "pause", page, folderPage) =>
+          pauseTask(
+            user.id,
+            TaskId(UUID.fromString(taskId)),
+            message.messageId,
+            page.toInt,
+            folderPage.toInt,
+          )
+        case regexUUIDWithActionAndDigits(taskId, "next", page, folderPage) =>
+          changeTaskStatus(
+            user.id,
+            TaskId(UUID.fromString(taskId)),
+            message.messageId,
+            page.toInt,
+            folderPage.toInt,
+          )
+
+        case regexUUIDWithActionAndDigits(taskId, "actions", page, folderPage) =>
+          telegramClient
+            .answerCallbackQuery(
+              callbackQueryId,
+              "Ishlab chiqish jarayonida",
+              showAlert = true,
+              3,
+            )
+            .flatMap(_ => logger.info(taskId + "_" + page + "_" + folderPage))
+
         case regexUUIDWithActionAndDigitsAndPage(folderId, "createTask", msgId, page, folderPage) =>
           for {
             _ <- telegramClient.editMessageText(
@@ -185,70 +243,6 @@ object LiteBotService {
               1.day,
             )
           } yield ()
-        case regexUUIDWithActionAndDigits(taskIdStr, "task", page, folderPage) =>
-          val taskId = TaskId(UUID.fromString(taskIdStr))
-          liteTasksRepository.findById(taskId).flatMap { taskOpt =>
-            taskOpt.fold(
-              telegramClient.sendMessage(user.id, "❌ Vazifa haqida ma'lumot topilmadi!")
-            ) { task =>
-              val buttons = ReplyInlineKeyboardMarkup(
-                List(
-                  List(
-                    InlineKeyboardButton("▶\uFE0F", task.id.toString + "_play"),
-                    InlineKeyboardButton("⏩", task.id.toString + "_next"),
-                    InlineKeyboardButton("*⃣", task.id.toString + "_actions"),
-                  ),
-                  List(
-                    InlineKeyboardButton(
-                      "↩\uFE0F",
-                      task.folderId.toString + s"_goBackToTasks_${page}_$folderPage",
-                    )
-                  ),
-                )
-              )
-              val emoji = task.status match {
-                case TaskStatus.ToDo => "\uD83D\uDCDD "
-                case TaskStatus.InProgress => "⏳ "
-                case TaskStatus.InReview => "\uD83D\uDC41 "
-                case TaskStatus.Testing => "⛓\uFE0F\u200D\uD83D\uDCA5 "
-                case _ => ""
-              }
-              telegramClient
-                .editMessageText(user.id, message.messageId, emoji + task.name.value)
-                .flatMap(_ =>
-                  telegramClient.editMessageReplyMarkup(user.id, message.messageId, buttons.some)
-                )
-            }
-          }
-
-        case regexUUIDWithActionAndDigits(folderId, "goBackToTasks", page, folderPage) =>
-          enterFolder(
-            user.id,
-            message.messageId,
-            FolderId(UUID.fromString(folderId)),
-            page.toInt,
-            folderPage.toInt,
-          )
-
-        case regexActionsWithPage("pagination", "folder", page) =>
-          showFolders(user.id, message.messageId, page.toInt)
-
-        case regexActionAndUUIDWithDigits("pagination", folderId, page, folderPage) =>
-          enterFolder(
-            user.id,
-            message.messageId,
-            FolderId(UUID.fromString(folderId)),
-            page.toInt,
-            folderPage.toInt,
-          )
-
-        case regexActionWithInfo("pagination", action) =>
-          telegramClient.answerCallbackQuery(
-            callbackQueryId = callbackQueryId,
-            text = action,
-            showAlert = true,
-            cache_time = 3,
-          )
 
         case _ => logger.warn("unknown data type")
       }
@@ -297,7 +291,7 @@ object LiteBotService {
 
     private def showFolders(
         chatId: Long,
-        oldMessageId: Long,
+        messageId: Long,
         page: Int,
       ): F[Unit] = for {
       _ <- redisClient.del(chatId.toString + "+inputFolder")
@@ -312,7 +306,7 @@ object LiteBotService {
       }
       _ <- telegramClient.editMessageText(
         chatId,
-        oldMessageId,
+        messageId,
         "\uD83D\uDDC2 Quyidagi jildlardan birini tanlang:",
       )
       total = folders.total / limit + 1
@@ -324,7 +318,7 @@ object LiteBotService {
         else "pagination_Sahifa mavjud emas!"
       _ <- telegramClient.editMessageReplyMarkup(
         chatId = chatId,
-        messageId = oldMessageId,
+        messageId = messageId,
         replyMarkup = ReplyInlineKeyboardMarkup(
           buttons :+ List(
             InlineKeyboardButton("⬅\uFE0F", previousPage),
@@ -358,7 +352,7 @@ object LiteBotService {
         _ <- showFolders(chatId, oldMessageId, page)
       } yield ()
 
-    private def enterFolder(
+    private def showTasks(
         chatId: Long,
         messageId: Long,
         folderId: FolderId,
@@ -373,6 +367,7 @@ object LiteBotService {
             case TaskStatus.InProgress => "⏳ "
             case TaskStatus.InReview => "\uD83D\uDC41 "
             case TaskStatus.Testing => "⛓\uFE0F\u200D\uD83D\uDCA5 "
+            case TaskStatus.Done => "✅ "
             case _ => ""
           }
           List(
@@ -443,7 +438,181 @@ object LiteBotService {
           )
         )
         _ <- redisClient.del(chatId.toString + "+inputTask")
-        _ <- enterFolder(chatId, oldMessageId, folderId, page, folderPage)
+        _ <- showTasks(chatId, oldMessageId, folderId, page, folderPage)
       } yield ()
+
+    private def enterTask(
+        chatId: Long,
+        taskId: TaskId,
+        messageId: Long,
+        page: Int,
+        folderPage: Int,
+      ): F[Unit] =
+      liteTasksRepository.findById(taskId).flatMap { taskOpt =>
+        taskOpt.fold(
+          telegramClient.sendMessage(chatId, "❌ Vazifa haqida ma'lumot topilmadi!")
+        ) { task =>
+          val tuple =
+            if (task.startedAt.nonEmpty && task.finishedAt.isEmpty)
+              (
+                InlineKeyboardButton(
+                  "⏸\uFE0F",
+                  task.id.toString + s"_pause_${page}_$folderPage",
+                ),
+                task.name.value + s"\n\nTask begin: ${task
+                    .startedAt
+                    .map { zd =>
+                      val d = zd.plusHours(5)
+                      s"${d.toLocalDate} - ${d.getHour}:${d.getMinute}"
+                    }
+                    .getOrElse("")}",
+              )
+            else
+              (
+                InlineKeyboardButton(
+                  "▶\uFE0F",
+                  task.id.toString + s"_play_${page}_$folderPage",
+                ),
+                task.name.value + s"\n\nTask duration: ${task.duration} minutes",
+              )
+
+          val buttons = ReplyInlineKeyboardMarkup(
+            List(
+              List(
+                tuple._1,
+                InlineKeyboardButton("⏩", task.id.toString + s"_next_${page}_$folderPage"),
+                InlineKeyboardButton("*⃣", task.id.toString + s"_actions_${page}_$folderPage"),
+              ),
+              List(
+                InlineKeyboardButton(
+                  "↩\uFE0F",
+                  task.folderId.toString + s"_goBackToTasks_${page}_$folderPage",
+                )
+              ),
+            )
+          )
+          val emoji = task.status match {
+            case TaskStatus.ToDo => "\uD83D\uDCDD "
+            case TaskStatus.InProgress => "⏳ "
+            case TaskStatus.InReview => "\uD83D\uDC41 "
+            case TaskStatus.Testing => "⛓\uFE0F\u200D\uD83D\uDCA5 "
+            case TaskStatus.Done => "✅ "
+            case _ => ""
+          }
+          telegramClient
+            .editMessageText(chatId, messageId, emoji + tuple._2)
+            .flatMap(_ => telegramClient.editMessageReplyMarkup(chatId, messageId, buttons.some))
+        }
+      }
+
+    private def playTask(
+        chatId: Long,
+        taskId: TaskId,
+        messageId: Long,
+        page: Int,
+        folderPage: Int,
+      ): F[Unit] =
+      liteTasksRepository
+        .findById(taskId)
+        .flatMap(taskOpt =>
+          taskOpt.fold(telegramClient.sendMessage(chatId, "Vazifa ma'lumotlari topilmadi!")) {
+            task =>
+              for {
+                now <- Calendar[F].currentZonedDateTime
+                _ <- liteTasksRepository.update(
+                  LiteTask(
+                    id = task.id,
+                    createdAt = task.createdAt,
+                    userId = task.userId,
+                    folderId = task.folderId,
+                    name = task.name,
+                    status =
+                      if (task.status == TaskStatus.ToDo) TaskStatus.InProgress else task.status,
+                    startedAt = now.some,
+                    finishedAt = None,
+                    duration = task.duration,
+                  )
+                )
+                _ <- enterTask(chatId, taskId, messageId, page, folderPage)
+              } yield ()
+          }
+        )
+
+    private def pauseTask(
+        chatId: Long,
+        taskId: TaskId,
+        messageId: Long,
+        page: Int,
+        folderPage: Int,
+      ): F[Unit] =
+      liteTasksRepository
+        .findById(taskId)
+        .flatMap(taskOpt =>
+          taskOpt.fold(telegramClient.sendMessage(chatId, "Vazifa ma'lumotlari topilmadi!")) {
+            task =>
+              for {
+                now <- Calendar[F].currentZonedDateTime
+                additionalMinutes = Duration
+                  .between(task.startedAt.getOrElse(now), now)
+                  .toMinutes
+                _ <- liteTasksRepository.update(
+                  LiteTask(
+                    id = task.id,
+                    createdAt = task.createdAt,
+                    userId = task.userId,
+                    folderId = task.folderId,
+                    name = task.name,
+                    status = task.status,
+                    startedAt = task.startedAt,
+                    finishedAt = now.some,
+                    duration = task.duration + additionalMinutes,
+                  )
+                )
+                _ <- enterTask(chatId, taskId, messageId, page, folderPage)
+              } yield ()
+          }
+        )
+
+    private def changeTaskStatus(
+        chatId: Long,
+        taskId: TaskId,
+        messageId: Long,
+        page: Int,
+        folderPage: Int,
+      ): F[Unit] =
+      liteTasksRepository
+        .findById(taskId)
+        .flatMap(taskOpt =>
+          taskOpt.fold(telegramClient.sendMessage(chatId, "Vazifa ma'lumotlari topilmadi!")) {
+            task =>
+              for {
+                now <- Calendar[F].currentZonedDateTime
+                additionalMinutes = Duration
+                  .between(task.startedAt.getOrElse(now), now)
+                  .toMinutes
+                status = task.status match {
+                  case TaskStatus.ToDo => TaskStatus.InProgress
+                  case TaskStatus.InProgress => TaskStatus.InReview
+                  case TaskStatus.InReview => TaskStatus.Testing
+                  case TaskStatus.Testing => TaskStatus.Done
+                  case _ => TaskStatus.ToDo
+                }
+                _ <- liteTasksRepository.update(
+                  LiteTask(
+                    id = task.id,
+                    createdAt = task.createdAt,
+                    userId = task.userId,
+                    folderId = task.folderId,
+                    name = task.name,
+                    status = status,
+                    startedAt = None,
+                    finishedAt = now.some,
+                    duration = task.duration + additionalMinutes,
+                  )
+                )
+                _ <- enterTask(chatId, taskId, messageId, page, folderPage)
+              } yield ()
+          }
+        )
   }
 }
