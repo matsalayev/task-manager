@@ -10,7 +10,7 @@ import tm.support.skunk.Sql
 import tm.support.skunk.codecs.nes
 
 private[repositories] object TagsSql extends Sql[TagId] {
-  private val codec: Codec[Tag] = (id *: nes *: nes *: CorporationsSql.id).to[Tag]
+  private val codec: Codec[Tag] = (id *: nes *: nes.opt *: CorporationsSql.id).to[Tag]
 
   val insert: Command[Tag] =
     sql"""INSERT INTO tags VALUES ($codec)""".command
@@ -25,7 +25,7 @@ private[repositories] object TagsSql extends Sql[TagId] {
     sql"""UPDATE tags
       SET
         name = $nes,
-        color = $nes
+        color = ${nes.opt}
       WHERE id = $id"""
       .command
       .contramap { (t: Tag) =>

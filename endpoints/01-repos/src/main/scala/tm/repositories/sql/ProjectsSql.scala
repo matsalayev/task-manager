@@ -13,7 +13,7 @@ import tm.support.skunk.codecs.zonedDateTime
 
 private[repositories] object ProjectsSql extends Sql[ProjectId] {
   private val codec: Codec[Project] =
-    (id *: zonedDateTime *: EmployeesSql.id *: CorporationsSql.id *: nes *: nes.opt)
+    (id *: zonedDateTime *: PeopleSql.id *: CorporationsSql.id *: nes *: nes.opt)
       .to[Project]
 
   val insert: Command[Project] =

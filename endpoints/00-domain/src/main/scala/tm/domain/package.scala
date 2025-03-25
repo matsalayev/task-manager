@@ -31,12 +31,6 @@ package object domain {
   @newtype case class CorporateId(value: UUID)
 
   @derive(eqv, show, uuid)
-  @newtype case class EmployeeId(value: UUID)
-
-  @derive(eqv, show, uuid)
-  @newtype case class SpecialtyId(value: UUID)
-
-  @derive(eqv, show, uuid)
   @newtype case class ProjectId(value: UUID)
 
   @derive(eqv, show, uuid)
