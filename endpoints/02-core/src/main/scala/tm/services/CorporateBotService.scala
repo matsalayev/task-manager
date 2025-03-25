@@ -56,7 +56,6 @@ import tm.integrations.telegram.domain.ReplyMarkup.ReplyKeyboardMarkup
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyKeyboardRemove
 import tm.repositories.AssetsRepository
 import tm.repositories.CorporationsRepository
-import tm.repositories.EmployeeRepository
 import tm.repositories.PeopleRepository
 import tm.repositories.ProjectsRepository
 import tm.repositories.TelegramRepository
@@ -75,7 +74,6 @@ object CorporateBotService {
       telegramRepository: TelegramRepository[F],
       peopleRepository: PeopleRepository[F],
       usersRepository: UsersRepository[F],
-      employeeRepository: EmployeeRepository[F],
       corporationsRepository: CorporationsRepository[F],
       projectsRepository: ProjectsRepository[F],
       assetsRepository: AssetsRepository[F],
@@ -391,10 +389,12 @@ object CorporateBotService {
                       _ <- usersRepository.createUser(
                         corporate.User(
                           id = personId,
+                          createdAt = now,
                           role = role,
                           phone = phone,
                           assetId = AssetId(UUID.fromString(photo)).some,
                           corporateId = id,
+                          password = NonEmptyString("1234"),
                         )
                       )
                       _ <- telegramClient.deleteMessage(

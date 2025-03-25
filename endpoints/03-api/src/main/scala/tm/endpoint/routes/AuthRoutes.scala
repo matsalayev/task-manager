@@ -25,10 +25,10 @@ final case class AuthRoutes[F[_]: Monad: JsonDecoder: MonadThrow](
   override val public: HttpRoutes[F] =
     HttpRoutes.of[F] {
       case req @ POST -> Root / "login" =>
-        implicit val lang: Language = req.lang
         req.decodeR[Credentials] { credentials =>
           auth.login(credentials).flatMap(Ok(_))
         }
+
       case req @ GET -> Root / "refresh" =>
         auth.refresh(req).flatMap(Ok(_))
     }

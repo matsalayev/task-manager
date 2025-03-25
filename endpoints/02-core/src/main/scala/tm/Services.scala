@@ -47,7 +47,6 @@ object Services {
       employeeBotService = EmployeeBotService.make[F](
         telegramClientEmployee,
         repositories.telegramRepository,
-        repositories.employeeRepository,
         repositories.corporationsRepository,
         repositories.projectsRepository,
       ),
@@ -57,7 +56,6 @@ object Services {
         repositories.telegramRepository,
         repositories.people,
         repositories.users,
-        repositories.employeeRepository,
         repositories.corporationsRepository,
         repositories.projectsRepository,
         repositories.assetsRepository,

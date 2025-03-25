@@ -22,4 +22,5 @@ case class Task(
     assetId: Option[AssetId],
     status: TaskStatus,
     deadline: Option[ZonedDateTime],
+    link: Option[NonEmptyString],
   )

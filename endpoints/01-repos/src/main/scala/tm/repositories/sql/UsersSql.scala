@@ -18,7 +18,8 @@ import tm.support.skunk.codecs.zonedDateTime
 private[repositories] object UsersSql extends Sql[PersonId] {
   private val codec = (id *: role *: phone).to[User]
   private val corporateUserCodec =
-    (id *: role *: phone *: AssetsSql.id.opt *: CorporationsSql.id).to[corporate.User]
+    (id *: zonedDateTime *: role *: phone *: AssetsSql.id.opt *: CorporationsSql.id *: nes)
+      .to[corporate.User]
   private val dtoUserCodec =
     (id *: zonedDateTime *: nes *: CorporationsSql.id *: nes *: role *: AssetsSql.id.opt *: phone)
       .to[dto.User]

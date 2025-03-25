@@ -8,6 +8,6 @@ import tm.domain.TagId
 case class Tag(
     id: TagId,
     name: NonEmptyString,
-    color: NonEmptyString,
+    color: Option[NonEmptyString],
     corporateId: CorporateId,
   )

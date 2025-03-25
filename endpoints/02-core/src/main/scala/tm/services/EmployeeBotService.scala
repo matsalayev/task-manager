@@ -26,7 +26,6 @@ import tm.integrations.telegram.domain.ReplyMarkup.ReplyInlineKeyboardMarkup
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyKeyboardMarkup
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyKeyboardRemove
 import tm.repositories.CorporationsRepository
-import tm.repositories.EmployeeRepository
 import tm.repositories.ProjectsRepository
 import tm.repositories.TelegramRepository
 import tm.syntax.refined.commonSyntaxAutoRefineV
@@ -39,7 +38,6 @@ object EmployeeBotService {
   def make[F[_]: Monad: Calendar](
       telegramClient: TelegramClient[F],
       telegramRepository: TelegramRepository[F],
-      employeeRepository: EmployeeRepository[F],
       corporationsRepository: CorporationsRepository[F],
       projectsRepository: ProjectsRepository[F],
     )(implicit
@@ -74,21 +72,22 @@ object EmployeeBotService {
         case _ => logger.info("undefined behaviour for customer bot")
       }
 
-    private def handleContactMessage(user: User, phoneNumberStr: String): F[Unit] = {
-      val phoneNumber: Phone =
-        if (phoneNumberStr.startsWith("+")) phoneNumberStr else s"+$phoneNumberStr"
-
-      employeeRepository.findByPhone(phoneNumber).flatMap {
-        case Some(employee) =>
-          saveBotUser(user.id, employee.personId).flatMap(_ => sendEmployeeInfo(user.id))
-        case None =>
-          telegramClient.sendMessage(
-            user.id,
-            s"Uzr ${user.firstName} sizning '$phoneNumberStr' raqamingizni ota-onalar orasidan topa olmadik!",
-            ReplyKeyboardRemove().some,
-          )
-      }
-    }
+    private def handleContactMessage(user: User, phoneNumberStr: String): F[Unit] = ???
+//    {
+//      val phoneNumber: Phone =
+//        if (phoneNumberStr.startsWith("+")) phoneNumberStr else s"+$phoneNumberStr"
+//
+//      employeeRepository.findByPhone(phoneNumber).flatMap {
+//        case Some(employee) =>
+//          saveBotUser(user.id, employee.personId).flatMap(_ => sendEmployeeInfo(user.id))
+//        case None =>
+//          telegramClient.sendMessage(
+//            user.id,
+//            s"Uzr ${user.firstName} sizning '$phoneNumberStr' raqamingizni ota-onalar orasidan topa olmadik!",
+//            ReplyKeyboardRemove().some,
+//          )
+//      }
+//    }
 
     private def handleCallbackQuery(callbackQuery: CallbackQuery): F[Unit] =
       callbackQuery match {
@@ -118,91 +117,91 @@ object EmployeeBotService {
         ).some,
       )
 
-    private def sendEmployeeInfo(chatId: Long): F[Unit] =
-      telegramRepository.findByChatId(chatId).flatMap {
-        case Some(personId) =>
-          employeeRepository.findById(personId).flatMap {
-            case Some(employee) =>
-              for {
-                _ <- telegramClient.sendMessage(
-                  chatId,
-                  s"Assalomu alaykum ${employee.fullName}\nKorporatsiya: ${employee.corporateName}\nLavozim: ${employee.specialtyName}",
-                  ReplyKeyboardRemove().some,
-                )
-              } yield ()
-            case _ =>
-              telegramClient.sendMessage(
-                chatId,
-                s"Uzr sizni xodimlar orasidan topa olmadik!",
-                ReplyKeyboardRemove().some,
-              )
-          }
-        case _ =>
-          telegramClient.sendMessage(
-            chatId,
-            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
-            ReplyKeyboardRemove().some,
-          )
-      }
+    private def sendEmployeeInfo(chatId: Long): F[Unit] = ???
+//      telegramRepository.findByChatId(chatId).flatMap {
+//        case Some(personId) =>
+//          employeeRepository.findById(personId).flatMap {
+//            case Some(employee) =>
+//              for {
+//                _ <- telegramClient.sendMessage(
+//                  chatId,
+//                  s"Assalomu alaykum ${employee.fullName}\nKorporatsiya: ${employee.corporateName}\nLavozim: ${employee.specialtyName}",
+//                  ReplyKeyboardRemove().some,
+//                )
+//              } yield ()
+//            case _ =>
+//              telegramClient.sendMessage(
+//                chatId,
+//                s"Uzr sizni xodimlar orasidan topa olmadik!",
+//                ReplyKeyboardRemove().some,
+//              )
+//          }
+//        case _ =>
+//          telegramClient.sendMessage(
+//            chatId,
+//            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
+//            ReplyKeyboardRemove().some,
+//          )
+//      }
 
-    private def sendCorporateInfo(chatId: Long): F[Unit] =
-      telegramRepository.findByChatId(chatId).flatMap {
-        case Some(personId) =>
-          employeeRepository.findById(personId).flatMap {
-            case Some(employee) =>
-              corporationsRepository.findById(employee.corporateId).flatMap {
-                case Some(corporate) =>
-                  telegramClient.sendMessage(
-                    chatId,
-                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
-                    ReplyKeyboardRemove().some,
-                  )
-                case _ => Applicative[F].unit
-              }
-            case _ =>
-              telegramClient.sendMessage(
-                chatId,
-                s"Uzr sizni xodimlar orasidan topa olmadik!",
-                ReplyKeyboardRemove().some,
-              )
-          }
-        case _ =>
-          telegramClient.sendMessage(
-            chatId,
-            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
-            ReplyKeyboardRemove().some,
-          )
-      }
+    private def sendCorporateInfo(chatId: Long): F[Unit] = ???
+//      telegramRepository.findByChatId(chatId).flatMap {
+//        case Some(personId) =>
+//          employeeRepository.findById(personId).flatMap {
+//            case Some(employee) =>
+//              corporationsRepository.findById(employee.corporateId).flatMap {
+//                case Some(corporate) =>
+//                  telegramClient.sendMessage(
+//                    chatId,
+//                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
+//                    ReplyKeyboardRemove().some,
+//                  )
+//                case _ => Applicative[F].unit
+//              }
+//            case _ =>
+//              telegramClient.sendMessage(
+//                chatId,
+//                s"Uzr sizni xodimlar orasidan topa olmadik!",
+//                ReplyKeyboardRemove().some,
+//              )
+//          }
+//        case _ =>
+//          telegramClient.sendMessage(
+//            chatId,
+//            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
+//            ReplyKeyboardRemove().some,
+//          )
+//      }
 
-    private def sendProjects(chatId: Long): F[Unit] =
-      telegramRepository.findByChatId(chatId).flatMap {
-        case Some(personId) =>
-          employeeRepository.findById(personId).flatMap {
-            case Some(employee) =>
-              projectsRepository.getAll(employee.corporateId).flatMap { projects =>
-                Applicative[F].unit
-              //                case Some(corporate) =>
-              //                  telegramClient.sendMessage(
-              //                    chatId,
-              //                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
-              //                    ReplyKeyboardRemove().some,
-              //                  )
-              //                case _ => Applicative[F].unit
-              }
-            case _ =>
-              telegramClient.sendMessage(
-                chatId,
-                s"Uzr sizni xodimlar orasidan topa olmadik!",
-                ReplyKeyboardRemove().some,
-              )
-          }
-        case _ =>
-          telegramClient.sendMessage(
-            chatId,
-            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
-            ReplyKeyboardRemove().some,
-          )
-      }
+    private def sendProjects(chatId: Long): F[Unit] = ???
+//      telegramRepository.findByChatId(chatId).flatMap {
+//        case Some(personId) =>
+//          employeeRepository.findById(personId).flatMap {
+//            case Some(employee) =>
+//              projectsRepository.getAll(employee.corporateId).flatMap { projects =>
+//                Applicative[F].unit
+//              //                case Some(corporate) =>
+//              //                  telegramClient.sendMessage(
+//              //                    chatId,
+//              //                    s"Korporatsiya: ${corporate.name}\nJoylashuv: ${corporate.locationId}",
+//              //                    ReplyKeyboardRemove().some,
+//              //                  )
+//              //                case _ => Applicative[F].unit
+//              }
+//            case _ =>
+//              telegramClient.sendMessage(
+//                chatId,
+//                s"Uzr sizni xodimlar orasidan topa olmadik!",
+//                ReplyKeyboardRemove().some,
+//              )
+//          }
+//        case _ =>
+//          telegramClient.sendMessage(
+//            chatId,
+//            s"Uzr sizni foydalanuvchilar orasidan topa olmadik!",
+//            ReplyKeyboardRemove().some,
+//          )
+//      }
 
     private def saveBotUser(chatId: Long, personId: PersonId): F[Unit] =
       telegramRepository
