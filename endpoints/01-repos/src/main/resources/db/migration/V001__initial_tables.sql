@@ -102,7 +102,8 @@ CREATE TABLE works (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL,
   user_id UUID NOT NULL REFERENCES users (id),
   task_id UUID NOT NULL REFERENCES tasks (id),
-  during_minutes BIGINT NOT NULL DEFAULT = 0,
+  task_status TASK_STATUS NOT NULL,
+  during_minutes BIGINT NOT NULL DEFAULT 0,
   finished_at TIMESTAMP WITH TIME ZONE NULL
 );
 
