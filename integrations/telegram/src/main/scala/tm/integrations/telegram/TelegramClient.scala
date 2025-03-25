@@ -15,6 +15,7 @@ import sttp.model.Uri
 import tm.integrations.telegram.domain.GetFileResponse
 import tm.integrations.telegram.domain.MessageEntity
 import tm.integrations.telegram.domain.ReplyMarkup
+import tm.integrations.telegram.requests.AnswerCallbackQuery
 import tm.integrations.telegram.requests.DeleteMessage
 import tm.integrations.telegram.requests.EditMessageCaption
 import tm.integrations.telegram.requests.EditMessageReplyMarkup
@@ -46,6 +47,13 @@ trait TelegramClient[F[_]] {
       chatId: Long,
       messageId: Long,
       replyMarkup: Option[ReplyMarkup],
+    ): F[Unit]
+
+  def answerCallbackQuery(
+      callbackQueryId: String,
+      text: String,
+      showAlert: Boolean,
+      cache_time: Int,
     ): F[Unit]
 
   def editMessageText(
@@ -152,6 +160,14 @@ object TelegramClient {
 
     override def deleteMessage(chatId: Long, messageId: Long): F[Unit] =
       client.request(DeleteMessage(chatId, messageId)).void
+
+    override def answerCallbackQuery(
+        callbackQueryId: String,
+        text: String,
+        showAlert: Boolean,
+        cache_time: Int,
+      ): F[Unit] =
+      client.request(AnswerCallbackQuery(callbackQueryId, text, showAlert, cache_time)).void
   }
 
   private class NoOpTelegramClientImpl[F[_]: Applicative](implicit logger: Logger[F])
@@ -200,5 +216,13 @@ object TelegramClient {
 
     override def deleteMessage(chatId: Long, messageId: Long): F[Unit] =
       logger.info(s"Telegram message deleted [$chatId]")
+
+    override def answerCallbackQuery(
+        callbackQueryId: String,
+        text: String,
+        showAlert: Boolean,
+        cache_time: Int,
+      ): F[Unit] =
+      logger.info(s"Telegram answer callback query")
   }
 }

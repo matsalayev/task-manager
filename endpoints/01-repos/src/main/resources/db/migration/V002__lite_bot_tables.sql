@@ -1,0 +1,18 @@
+CREATE TABLE folders (
+  id UUID PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  user_id BIGINT NOT NULL,
+  name VARCHAR NOT NULL
+);
+
+CREATE TABLE lite_tasks (
+  id UUID PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  user_id BIGINT NOT NULL,
+  folder_id UUID NOT NULL REFERENCES folders (id),
+  name VARCHAR NOT NULL,
+  status TASK_STATUS NOT NULL,
+  started_at TIMESTAMP WITH TIME ZONE NULL,
+  finished_at TIMESTAMP WITH TIME ZONE NULL,
+  duration BIGINT NULL
+);
