@@ -1,8 +1,8 @@
 package tm.repositories
 
 import cats.effect.Resource
+import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
-
 import tm.domain.PersonId
 import tm.domain.telegram.BotUser
 import tm.effects.Calendar
@@ -13,6 +13,7 @@ import tm.support.skunk.syntax.all.skunkSyntaxQueryOps
 trait TelegramRepository[F[_]] {
   def createBotUser(user: BotUser): F[Unit]
   def findByChatId(chatId: Long): F[Option[PersonId]]
+  def findCorporateName(chatId: Long): F[Option[NonEmptyString]]
 }
 
 object TelegramRepository {
@@ -25,5 +26,8 @@ object TelegramRepository {
 
     override def findByChatId(chatId: Long): F[Option[PersonId]] =
       TelegramSql.findById.queryOption(chatId)
+
+    override def findCorporateName(chatId: Long): F[Option[NonEmptyString]] =
+      TelegramSql.findCorporateName.queryOption(chatId)
   }
 }

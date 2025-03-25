@@ -122,7 +122,7 @@ object CorporateBotService {
 
     private val employeeButtons = ReplyKeyboardMarkup(
       List(
-        List(KeyboardButton("Lavozimlar \uD83D\uDCBC"), KeyboardButton("Xodim qo'shish ➕")),
+        List(KeyboardButton("Xodimlar \uD83D\uDCBC"), KeyboardButton("Xodim qo'shish ➕")),
         List(KeyboardButton("Menu \uD83C\uDFE0")),
       )
     )
@@ -171,6 +171,7 @@ object CorporateBotService {
         case "Vazifalar \uD83D\uDCCB" => sendTasks(user.id)
         case "Monitoring \uD83D\uDCCA" => sendMonitoring(user.id)
         case "Sozlamalar ⚙\uFE0F" => sendSettings(user.id)
+        case "Xodim qo'shish ➕" => ???
         case regexFullName(firstName, lastName) =>
           redis.get(user.id.toString + "+phone").flatMap {
             case Some(_) =>
@@ -515,7 +516,7 @@ object CorporateBotService {
                 s"$company dagi lavozimingiz:",
                 replyMarkup = ReplyInlineKeyboardMarkup(
                   List(
-                    List(InlineKeyboardButton("Direktor", "admin")),
+                    List(InlineKeyboardButton("Direktor", "director")),
                     List(InlineKeyboardButton("Manager", "manager")),
                   )
                 ).some,
@@ -622,11 +623,18 @@ object CorporateBotService {
       )
 
     private def sendMenu(chatId: Long): F[Unit] =
-      telegramClient.sendMessage(
-        chatId = chatId,
-        text = "test",
-        replyMarkup = menuButtons(" ").some,
-      )
+      telegramRepository
+        .findCorporateName(chatId)
+        .flatMap(corporateNameOpt =>
+          corporateNameOpt.fold(Applicative[F].unit
+          ) { corporateName =>
+            telegramClient.sendMessage(
+              chatId = chatId,
+              text = "test",
+              replyMarkup = menuButtons(corporateName.value).some,
+            )
+          }
+        )
 
     private def sendContactRequest(chatId: Long): F[Unit] =
       telegramClient.sendMessage(

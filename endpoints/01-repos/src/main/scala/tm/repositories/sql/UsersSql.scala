@@ -46,7 +46,7 @@ private[repositories] object UsersSql extends Sql[PersonId] {
   val findByPhone: Query[Phone, corporate.User] =
     sql"""
       SELECT
-        id, role, phone, asset_id, corporate_id
+        id, created_at, role, phone, asset_id, corporate_id, password
       FROM users
       WHERE
         phone = $phone
@@ -60,11 +60,11 @@ private[repositories] object UsersSql extends Sql[PersonId] {
       FROM users u
       INNER JOIN people p
         ON p.id = u.id
-      INNER JOIN corporates c
+      INNER JOIN corporations c
         ON c.id = u.corporate_id
       WHERE
         u.id = $id
-        AND deleted_at IS NULL
+        AND u.deleted_at IS NULL
     """.query(dtoUserCodec)
 
   val insert: Command[AccessCredentials[User]] =
@@ -79,7 +79,7 @@ private[repositories] object UsersSql extends Sql[PersonId] {
 
   val createUser: Command[corporate.User] =
     sql"""
-      INSERT INTO users (id, role, phone, asset_id, corporate_id)
+      INSERT INTO users (id, created_at, role, phone, asset_id, corporate_id, password)
       VALUES ($corporateUserCodec)
     """.command
 //      .contramap { (u: corporate.User) =>

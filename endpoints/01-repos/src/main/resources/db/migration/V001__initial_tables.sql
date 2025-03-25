@@ -115,6 +115,6 @@ CREATE TABLE assignees (
 );
 
 CREATE TABLE telegram_bot_users (
-  user_id UUID UNIQUE REFERENCES users (id) NOT NULL,
+  person_id UUID UNIQUE REFERENCES people (id) NOT NULL,
   chat_id BIGINT UNIQUE NOT NULL
 );

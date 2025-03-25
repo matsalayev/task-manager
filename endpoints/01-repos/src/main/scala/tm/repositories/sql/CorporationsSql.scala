@@ -35,7 +35,7 @@ private[repositories] object CorporationsSql extends Sql[CorporateId] {
       FROM corporations c
       INNER JOIN locations l
         ON l.id = c.location_id
-      WHERE id = $id
+      WHERE c.id = $id
       LIMIT 1
     """.query(dtoCodec)
 
