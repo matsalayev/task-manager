@@ -20,7 +20,6 @@ case class Config(
     jobs: JobsRunnerConfig,
     tmCorporateBot: TelegramBotsConfig,
     tmEmployeeBot: TelegramBotsConfig,
-    tmLiteBot: TelegramBotsConfig,
   ) {
   lazy val migrations: MigrationsConfig = MigrationsConfig(
     hostname = database.host.value,

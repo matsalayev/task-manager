@@ -20,7 +20,7 @@ case class Services[F[_]](
     tasksService: TasksService[F],
     corporateBotService: CorporateBotService[F],
     employeeBotService: EmployeeBotService[F],
-    liteBotService: LiteBotService[F],
+    employeeService: EmployeeService[F],
   )
 
 object Services {
@@ -31,7 +31,6 @@ object Services {
       s3Client: S3Client[F],
       telegramClientCorporate: TelegramClient[F],
       telegramClientEmployee: TelegramClient[F],
-      telegramClientLite: TelegramClient[F],
     ): Services[F] = {
     def findUser: Phone => F[Option[AccessCredentials[AuthedUser]]] = phone =>
       OptionT(repositories.users.find(phone))
@@ -62,8 +61,7 @@ object Services {
         s3Client,
         redis,
       ),
-      liteBotService =
-        LiteBotService.make[F](telegramClientLite, redis, repositories.liteTasksRepository),
+      employeeService = EmployeeService.make[F](telegramClientEmployee, redis),
     )
   }
 }
