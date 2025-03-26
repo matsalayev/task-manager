@@ -63,7 +63,7 @@ object EmployeeService {
                     phone = data.phone,
                     assetId = None,
                     corporateId = user.corporateId,
-                    password = "1234",
+                    password = "$s0$e0801$5JK3Ogs35C2h5htbXQoeEQ==$N7HgNieSnOajn1FuEB7l4PhC6puBSq+e1E8WUaSJcGY=",
                   )
                 )
               } yield ()

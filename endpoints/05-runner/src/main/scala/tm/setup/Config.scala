@@ -1,5 +1,6 @@
 package tm.setup
 
+import eu.timepit.refined.types.string.NonEmptyString
 import tm.Phone
 import tm.auth.AuthConfig
 import tm.integration.aws.s3.AWSConfig
@@ -20,6 +21,7 @@ case class Config(
     jobs: JobsRunnerConfig,
     tmCorporateBot: TelegramBotsConfig,
     tmEmployeeBot: TelegramBotsConfig,
+    appDomain: NonEmptyString
   ) {
   lazy val migrations: MigrationsConfig = MigrationsConfig(
     hostname = database.host.value,

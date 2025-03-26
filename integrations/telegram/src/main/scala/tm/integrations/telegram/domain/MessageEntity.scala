@@ -7,4 +7,5 @@ case class MessageEntity(
     `type`: MessageEntityType,
     offset: Int,
     length: Int,
+    url: Option[String] = None,
   )

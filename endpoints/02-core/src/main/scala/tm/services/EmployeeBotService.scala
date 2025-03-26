@@ -32,17 +32,17 @@ import tm.utils.ID
 import tm.utils.Regex._
 
 trait EmployeeBotService[F[_]] {
-    def telegramMessage(update: Update): F[Unit]
+  def telegramMessage(update: Update): F[Unit]
 }
 //
 object EmployeeBotService {
   def make[F[_]: Monad: GenUUID: Calendar](
-                                            telegramClient: TelegramClient[F],
-                                            redisClient: RedisClient[F],
-                                          )(implicit
-                                            logger: Logger[F]
-                                          ): EmployeeBotService[F] = new EmployeeBotService[F] {
-    override def telegramMessage(update: Update): F[Unit] = ???
+      telegramClient: TelegramClient[F],
+      redisClient: RedisClient[F],
+    )(implicit
+      logger: Logger[F]
+    ): EmployeeBotService[F] = new EmployeeBotService[F] {
+    override def telegramMessage(update: Update): F[Unit] = Applicative[F].unit
   }
 }
 //    private val limit = 5

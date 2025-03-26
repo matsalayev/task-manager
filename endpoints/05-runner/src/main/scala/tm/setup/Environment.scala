@@ -81,6 +81,7 @@ object Environment {
           s3Client,
           telegramBrokerCorporate,
           telegramBrokerEmployee,
+          config.appDomain,
         )
       middleware = Middlewares.make[F](config.auth, redis)
     } yield Environment[F](

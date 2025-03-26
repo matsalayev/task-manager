@@ -14,6 +14,7 @@ object MessageEntityType extends Enum[MessageEntityType] with CirceEnum[MessageE
   case object Blockquote extends MessageEntityType
   case object ExpandableBlockquote extends MessageEntityType
   case object Code extends MessageEntityType
+  case object TextLink extends MessageEntityType
 
   override def values: IndexedSeq[MessageEntityType] = findValues
 }

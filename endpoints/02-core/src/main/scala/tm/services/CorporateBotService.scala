@@ -18,7 +18,6 @@ import cats.implicits.catsSyntaxTuple4Semigroupal
 import cats.implicits.toFlatMapOps
 import cats.implicits.toFunctorOps
 import cats.implicits.toTraverseOps
-import eu.timepit.refined.string.Regex
 import eu.timepit.refined.types.string.NonEmptyString
 import org.typelevel.log4cats.Logger
 
@@ -54,6 +53,7 @@ import tm.integrations.telegram.domain.MessageEntityType
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyInlineKeyboardMarkup
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyKeyboardMarkup
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyKeyboardRemove
+import tm.integrations.telegram.domain.WebAppInfo
 import tm.repositories.AssetsRepository
 import tm.repositories.CorporationsRepository
 import tm.repositories.PeopleRepository
@@ -64,6 +64,8 @@ import tm.repositories.dto
 import tm.support.redis.RedisClient
 import tm.syntax.refined.commonSyntaxAutoRefineV
 import tm.utils.ID
+import tm.utils.Regex._
+
 trait CorporateBotService[F[_]] {
   def telegramMessage(update: Update): F[Unit]
 }
@@ -79,6 +81,7 @@ object CorporateBotService {
       assetsRepository: AssetsRepository[F],
       s3Client: S3Client[F],
       redis: RedisClient[F],
+      appDomain: NonEmptyString,
     )(implicit
       logger: Logger[F]
     ): CorporateBotService[F] = new CorporateBotService[F] {
@@ -122,7 +125,8 @@ object CorporateBotService {
 
     private val employeeButtons = ReplyKeyboardMarkup(
       List(
-        List(KeyboardButton("Xodimlar \uD83D\uDCBC"), KeyboardButton("Xodim qo'shish ➕")),
+        List(KeyboardButton("Ro'yxat \uD83D\uDCCB")),
+        List(KeyboardButton("Qidirish \uD83D\uDD0E"), KeyboardButton("Xodim qo'shish ➕")),
         List(KeyboardButton("Menu \uD83C\uDFE0")),
       )
     )
@@ -156,12 +160,6 @@ object CorporateBotService {
       }
 
     private def handleTextMessage(user: User, text: String): F[Unit] = {
-      val regexFullName = """([\p{L}]+)\s+([\p{L}]+)""".r
-      val regexDateOfBirth = """((19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))""".r
-      val regexDocumentNumber = """(^[A-Z]{2}\d{7})""".r
-      val regexPinfl = """(\d{14})""".r
-      val regexCompanyName = """'([^']*)'""".r
-
       text match {
         case "/start" => sendContactRequest(user.id)
         case company if company.contains("🏢") => sendCompanySetting(user.id)
@@ -171,7 +169,7 @@ object CorporateBotService {
         case "Vazifalar \uD83D\uDCCB" => sendTasks(user.id)
         case "Monitoring \uD83D\uDCCA" => sendMonitoring(user.id)
         case "Sozlamalar ⚙\uFE0F" => sendSettings(user.id)
-        case "Xodim qo'shish ➕" => ???
+        case "Xodim qo'shish ➕" => addEmployee(user.id)
         case regexFullName(firstName, lastName) =>
           redis.get(user.id.toString + "+phone").flatMap {
             case Some(_) =>
@@ -395,7 +393,9 @@ object CorporateBotService {
                           phone = phone,
                           assetId = AssetId(UUID.fromString(photo)).some,
                           corporateId = id,
-                          password = NonEmptyString("1234"),
+                          password = NonEmptyString(
+                            "$s0$e0801$5JK3Ogs35C2h5htbXQoeEQ==$N7HgNieSnOajn1FuEB7l4PhC6puBSq+e1E8WUaSJcGY="
+                          ),
                         )
                       )
                       _ <- telegramClient.deleteMessage(
@@ -516,8 +516,8 @@ object CorporateBotService {
                 s"$company dagi lavozimingiz:",
                 replyMarkup = ReplyInlineKeyboardMarkup(
                   List(
-                    List(InlineKeyboardButton("Direktor", "director")),
-                    List(InlineKeyboardButton("Manager", "manager")),
+                    List(InlineKeyboardButton("Direktor", "director".some)),
+                    List(InlineKeyboardButton("Manager", "manager".some)),
                   )
                 ).some,
               )
@@ -578,14 +578,53 @@ object CorporateBotService {
         }
       } yield result).getOrElseF(Applicative[F].unit)
 
+    private def addEmployee(chatId: Long): F[Unit] =
+      telegramClient.sendMessage(
+        chatId,
+        "Xodimlar ma'lumotlarini kiritish uchun quyidagi mini ilovadan foydalaning!",
+//        entities = List(
+//          MessageEntity(MessageEntityType.TextLink, 0, 5, s"$appDomain/form/create-employee".some)
+//        ).some,
+        replyMarkup = ReplyInlineKeyboardMarkup(
+          List(
+            List(
+              InlineKeyboardButton(
+                "Ilovani ochish",
+                None,
+                WebAppInfo(s"$appDomain/form/create-employee").some,
+              )
+            )
+//            List(
+//              InlineKeyboardButton(
+//                "Sahifani ochish",
+//                None,
+//                None,
+//                s"$appDomain/form/create-employee".some,
+//              )
+//            )
+          )
+        ).some,
+      )
+
     private def sendEmployees(
         chatId: Long
       ): F[Unit] =
-      telegramClient.sendMessage(
-        chatId = chatId,
-        text = "test",
-        replyMarkup = employeeButtons.some,
-      )
+      (for {
+        personId <- OptionT(telegramRepository.findByChatId(chatId))
+        user <- OptionT(usersRepository.findById(personId))
+        corporate <- OptionT(corporationsRepository.findById(user.corporateId))
+        result <- OptionT.liftF {
+          usersRepository
+            .getCorporateUsers(user.corporateId)
+            .flatMap(list =>
+              telegramClient.sendMessage(
+                chatId = chatId,
+                text = s"${corporate.name} da ${list.length} - ta xodim topildi!",
+                replyMarkup = employeeButtons.some,
+              )
+            )
+        }
+      } yield result).getOrElseF(Applicative[F].unit)
 
     private def sendSettings(
         chatId: Long
@@ -626,8 +665,7 @@ object CorporateBotService {
       telegramRepository
         .findCorporateName(chatId)
         .flatMap(corporateNameOpt =>
-          corporateNameOpt.fold(Applicative[F].unit
-          ) { corporateName =>
+          corporateNameOpt.fold(Applicative[F].unit) { corporateName =>
             telegramClient.sendMessage(
               chatId = chatId,
               text = "test",

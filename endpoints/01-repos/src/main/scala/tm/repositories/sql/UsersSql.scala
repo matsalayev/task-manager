@@ -5,6 +5,7 @@ import skunk._
 import skunk.implicits._
 
 import tm.Phone
+import tm.domain.CorporateId
 import tm.domain.PersonId
 import tm.domain.auth.AccessCredentials
 import tm.domain.auth.AuthedUser.User
@@ -88,4 +89,18 @@ private[repositories] object UsersSql extends Sql[PersonId] {
 
   val delete: Command[PersonId] =
     sql"""DELETE FROM users WHERE id = $id""".command
+
+  val get: Query[CorporateId, corporate.User] =
+    sql"""
+    SELECT
+      u.id,
+      u.created_at,
+      u.role,
+      u.phone,
+      u.asset_id,
+      u.corporate_id,
+      u.password
+    FROM users u
+    WHERE u.corporate_id = ${CorporationsSql.id}
+    """.query(corporateUserCodec)
 }
