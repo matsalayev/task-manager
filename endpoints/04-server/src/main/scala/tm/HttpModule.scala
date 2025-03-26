@@ -27,7 +27,7 @@ object HttpModule {
           env.services.employeeBotService,
           env.telegramCorporateBot.webhookSecret,
         ),
-        new FormRoutes[F](),
+        new FormRoutes[F](env.services.employeeService),
         new AuthRoutes[F](env.services.auth),
         new AssetsRoutes[F](env.services.assets),
       )

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        /* Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+        /* Global styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: #121212;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: #1E1E1E;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(255, 255, 255, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background: #2C2C2C;
+            color: white;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+            display: none;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .success {
+            background: #28a745;
+        }
+
+        .error {
+            background: #dc3545;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Tizimga kirish</h2>
+    <form id="loginForm">
+        <label for="phone">Telefon raqami</label>
+        <input type="tel" id="phone" name="phone" placeholder="+998901234567" required
+               pattern="\+998[0-9]{9}" title="Telefon raqamini faqat +998901234567 formatida kiriting">
+
+        <label for="password">Parol</label>
+        <input type="password" id="password" name="password" placeholder="Parolingiz" required>
+
+        <button type="submit">Kirish</button>
+    </form>
+    <p class="message" id="responseMessage"></p>
+</div>
+
+<script>
+    document.getElementById("loginForm").addEventListener("submit", async function(event) {
+     event.preventDefault();
+
+     const phone = document.getElementById("phone").value.trim();
+     const password = document.getElementById("password").value.trim();
+     const responseMessage = document.getElementById("responseMessage");
+
+     if (!phone || !password) {
+         responseMessage.textContent = "Iltimos, barcha maydonlarni to‘ldiring!";
+         responseMessage.className = "message error";
+         responseMessage.style.display = "block";
+         return;
+     }
+
+     const loginData = { phone, password };
+
+     try {
+         const response = await fetch("/auth/login", {
+             method: "POST",
+             headers: {
+                 "Content-Type": "application/json"
+             },
+             body: JSON.stringify(loginData)
+         });
+
+         const result = await response.json();
+
+         if (response.status === 200) {
+             // Tokenlarni saqlash
+             localStorage.setItem("accessToken", result.accessToken);
+             localStorage.setItem("refreshToken", result.refreshToken);
+
+             responseMessage.textContent = "Muvaffaqiyatli kirildi!";
+             responseMessage.className = "message success";
+             responseMessage.style.display = "block";
+
+             // Keyingi so‘rovlar uchun tokenni ishlatish
+             setTimeout(async () => {
+                 const accessToken = localStorage.getItem("accessToken");
+                 if (!accessToken) {
+                     responseMessage.textContent = "Token topilmadi! Iltimos, qaytadan kiring.";
+                     responseMessage.className = "message error";
+                     responseMessage.style.display = "block";
+                     return;
+                 }
+
+                 // Token bilan bog‘liq so‘rov
+                 const protectedResponse = await fetch("/form/create-employee", {
+                     method: "GET",
+                     headers: {
+                         "Authorization": `Bearer ${accessToken}`
+                     }
+                 });
+
+                 if (protectedResponse.status === 200) {
+                     window.location.href = "/form/create-employee";
+                 } else {
+                     responseMessage.textContent = "Himoyalangan sahifaga o‘tishda xatolik!";
+                     responseMessage.className = "message error";
+                     responseMessage.style.display = "block";
+                 }
+             }, 2000);
+         } else {
+             responseMessage.textContent = `Xatolik: ${result.message || "Telefon yoki parol noto‘g‘ri!"}`;
+             responseMessage.className = "message error";
+             responseMessage.style.display = "block";
+         }
+     } catch (error) {
+         responseMessage.textContent = "Server bilan bog‘lanib bo‘lmadi!";
+         responseMessage.className = "message error";
+         responseMessage.style.display = "block";
+     }
+ });
+
+</script>
+
+</body>
+</html>
