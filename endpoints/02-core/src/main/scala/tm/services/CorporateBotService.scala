@@ -176,8 +176,10 @@ object CorporateBotService {
               for {
                 today <- Calendar[F].currentDate
                 msg = s"Ism: $firstName\nFamiliya: $lastName "
-                ask = s"Iltimos tug'ilgan kuningizni quyidagi formatda yozib yuboring: "
-                example = s"$today "
+//                ask = s"Iltimos tug'ilgan kuningizni quyidagi formatda yozib yuboring: "
+//                example = s"$today "
+                ask = "Iltimos kamponiyangiz nomini '' ichida yozib yuboring: "
+                example = "'Kamponiya' "
                 _ <- telegramClient.sendMessage(
                   user.id,
                   s"$msg\n\n$ask\n\n$example",
@@ -195,120 +197,139 @@ object CorporateBotService {
             case None => Applicative[F].unit
           }
 
-        case regexDateOfBirth(date, _*) =>
-          (
-            redis.get(user.id.toString + "+full_name"),
-            redis.put(user.id.toString + "+date", date, 60.minute),
-          ).tupled.flatMap {
-            case (Some(fullName), _) =>
-              val nameParts = fullName.split(' ')
-              val msg =
-                s"Ism: ${nameParts.head}\nFamiliya: ${nameParts.last}\nTug'ilgan kun: $date "
-              val ask = "Iltimos hujjat raqamingizni yozib yuboring: "
-              val example = "AC1234567 "
-              telegramClient.sendMessage(
-                user.id,
-                s"$msg\n\n$ask\n\n$example",
-                entities = List(
-                  MessageEntity(MessageEntityType.Italic, msg.length + 2, ask.length),
-                  MessageEntity(
-                    MessageEntityType.Code,
-                    msg.length + ask.length + 3,
-                    example.length,
-                  ),
-                ).some,
-              )
-            case _ => Applicative[F].unit
-          }
-
-        case regexDocumentNumber(document) =>
-          (
-            redis.get(user.id.toString + "+full_name"),
-            redis.get(user.id.toString + "+date"),
-            redis.put(user.id.toString + "+document", document, 60.minute),
-          ).tupled.flatMap {
-            case (Some(fullName), Some(date), _) =>
-              val nameParts = fullName.split(' ')
-              val msg =
-                s"Ism: ${nameParts.head}\nFamiliya: ${nameParts.last}\nTug'ilgan kun: $date\nHujjat raqami: $document "
-              val ask = "Iltimos pinfl raqamingizni yozib yuboring: "
-              val example = "56001234567890 "
-              telegramClient.sendMessage(
-                user.id,
-                s"$msg\n\n$ask\n\n$example",
-                entities = List(
-                  MessageEntity(MessageEntityType.Italic, msg.length + 2, ask.length),
-                  MessageEntity(
-                    MessageEntityType.Code,
-                    msg.length + ask.length + 3,
-                    example.length,
-                  ),
-                ).some,
-              )
-            case _ => Applicative[F].unit
-          }
-
-        case regexPinfl(pinfl) =>
-          (
-            redis.get(user.id.toString + "+full_name"),
-            redis.get(user.id.toString + "+date"),
-            redis.get(user.id.toString + "+document"),
-            redis.put(user.id.toString + "+pinfl", pinfl, 60.minute),
-          ).tupled.flatMap {
-            case (Some(fullName), Some(date), Some(document), _) =>
-              val nameParts = fullName.split(' ')
-              val msg =
-                s"Ism: ${nameParts.head}\nFamiliya: ${nameParts.last}\nTug'ilgan kun: $date\nHujjat raqami: $document\nPinfl: $pinfl "
-              val ask = "Iltimos suratingizni yuboring. "
-              for {
-                _ <- telegramClient.sendMessage(
-                  user.id,
-                  s"$msg\n\n$ask",
-                  entities = List(
-                    MessageEntity(MessageEntityType.Italic, msg.length + 2, ask.length)
-                  ).some,
-                )
-                id <- ID.make[F, PersonId]
-                now <- Calendar[F].currentZonedDateTime
-                gender = if (fullName.last == 'a') Gender.Female else Gender.Male
-                _ <- peopleRepository.create(
-                  dto.Person(
-                    id = id,
-                    createdAt = now,
-                    fullName = fullName,
-                    gender = gender,
-                    dateOfBirth = LocalDate.parse(date).some,
-                    documentNumber = NonEmptyString.unsafeFrom(document).some,
-                    pinflNumber = NonEmptyString.unsafeFrom(pinfl).some,
-                    updatedAt = None,
-                    deletedAt = None,
-                  )
-                )
-                _ <- saveBotUser(user.id, id)
-                _ <- redis.del(user.id.toString + "+full_name")
-                _ <- redis.del(user.id.toString + "+date")
-                _ <- redis.del(user.id.toString + "+document")
-                _ <- redis.del(user.id.toString + "+pinfl")
-              } yield ()
-            case _ => Applicative[F].unit
-          }
+//        case regexDateOfBirth(date, _*) =>
+//          (
+//            redis.get(user.id.toString + "+full_name"),
+//            redis.put(user.id.toString + "+date", date, 60.minute),
+//          ).tupled.flatMap {
+//            case (Some(fullName), _) =>
+//              val nameParts = fullName.split(' ')
+//              val msg =
+//                s"Ism: ${nameParts.head}\nFamiliya: ${nameParts.last}\nTug'ilgan kun: $date "
+//              val ask = "Iltimos hujjat raqamingizni yozib yuboring: "
+//              val example = "AC1234567 "
+//              telegramClient.sendMessage(
+//                user.id,
+//                s"$msg\n\n$ask\n\n$example",
+//                entities = List(
+//                  MessageEntity(MessageEntityType.Italic, msg.length + 2, ask.length),
+//                  MessageEntity(
+//                    MessageEntityType.Code,
+//                    msg.length + ask.length + 3,
+//                    example.length,
+//                  ),
+//                ).some,
+//              )
+//            case _ => Applicative[F].unit
+//          }
+//
+//        case regexDocumentNumber(document) =>
+//          (
+//            redis.get(user.id.toString + "+full_name"),
+//            redis.get(user.id.toString + "+date"),
+//            redis.put(user.id.toString + "+document", document, 60.minute),
+//          ).tupled.flatMap {
+//            case (Some(fullName), Some(date), _) =>
+//              val nameParts = fullName.split(' ')
+//              val msg =
+//                s"Ism: ${nameParts.head}\nFamiliya: ${nameParts.last}\nTug'ilgan kun: $date\nHujjat raqami: $document "
+//              val ask = "Iltimos pinfl raqamingizni yozib yuboring: "
+//              val example = "56001234567890 "
+//              telegramClient.sendMessage(
+//                user.id,
+//                s"$msg\n\n$ask\n\n$example",
+//                entities = List(
+//                  MessageEntity(MessageEntityType.Italic, msg.length + 2, ask.length),
+//                  MessageEntity(
+//                    MessageEntityType.Code,
+//                    msg.length + ask.length + 3,
+//                    example.length,
+//                  ),
+//                ).some,
+//              )
+//            case _ => Applicative[F].unit
+//          }
+//
+//        case regexPinfl(pinfl) =>
+//          (
+//            redis.get(user.id.toString + "+full_name"),
+//            redis.get(user.id.toString + "+date"),
+//            redis.get(user.id.toString + "+document"),
+//            redis.put(user.id.toString + "+pinfl", pinfl, 60.minute),
+//          ).tupled.flatMap {
+//            case (Some(fullName), Some(date), Some(document), _) =>
+//              val nameParts = fullName.split(' ')
+//              val msg =
+//                s"Ism: ${nameParts.head}\nFamiliya: ${nameParts.last}\nTug'ilgan kun: $date\nHujjat raqami: $document\nPinfl: $pinfl "
+//              val ask = "Iltimos suratingizni yuboring. "
+//              for {
+//                _ <- telegramClient.sendMessage(
+//                  user.id,
+//                  s"$msg\n\n$ask",
+//                  entities = List(
+//                    MessageEntity(MessageEntityType.Italic, msg.length + 2, ask.length)
+//                  ).some,
+//                )
+//                id <- ID.make[F, PersonId]
+//                now <- Calendar[F].currentZonedDateTime
+//                gender = if (fullName.last == 'a') Gender.Female else Gender.Male
+//                _ <- peopleRepository.create(
+//                  dto.Person(
+//                    id = id,
+//                    createdAt = now,
+//                    fullName = fullName,
+//                    gender = gender,
+//                    dateOfBirth = LocalDate.parse(date).some,
+//                    documentNumber = NonEmptyString.unsafeFrom(document).some,
+//                    pinflNumber = NonEmptyString.unsafeFrom(pinfl).some,
+//                    updatedAt = None,
+//                    deletedAt = None,
+//                  )
+//                )
+//                _ <- saveBotUser(user.id, id)
+//                _ <- redis.del(user.id.toString + "+full_name")
+//                _ <- redis.del(user.id.toString + "+date")
+//                _ <- redis.del(user.id.toString + "+document")
+//                _ <- redis.del(user.id.toString + "+pinfl")
+//              } yield ()
+//            case _ => Applicative[F].unit
+//          }
 
         case regexCompanyName(companyName) =>
           (
             redis.get(user.id.toString + "+phone"),
-            redis.get(user.id.toString + "+photo"),
+            redis.get(user.id.toString + "+full_name"),
             redis.put(user.id.toString + "+companyName", companyName, 60.minute),
           ).tupled.flatMap {
-            case (Some(_), Some(_), _) =>
-              val msg = s"Kamponiya nomi: $companyName "
-              val ask = "Iltimos kamponiyangiz manzilini yuboring. "
-              telegramClient.sendMessage(
+            case (Some(_), Some(fullName), _) =>for{
+              id <- ID.make[F, PersonId]
+              now <- Calendar[F].currentZonedDateTime
+              gender = if (fullName.last == 'a') Gender.Female else Gender.Male
+              _ <- peopleRepository.create(
+                dto.Person(
+                  id = id,
+                  createdAt = now,
+                  fullName = fullName,
+                  gender = gender,
+                  dateOfBirth = None,
+                  documentNumber = None,
+                  pinflNumber = None,
+                  updatedAt = None,
+                  deletedAt = None,
+                )
+              )
+              _ <- saveBotUser(user.id, id)
+              _ <- redis.del(user.id.toString + "+full_name")
+              msg = s"Kamponiya nomi: $companyName "
+              ask = "Iltimos kamponiyangiz manzilini yuboring. "
+              _ <- telegramClient.sendMessage(
                 user.id,
                 s"$msg\n\n$ask",
                 entities = List(
                   MessageEntity(MessageEntityType.Italic, msg.length + 2, ask.length)
                 ).some,
               )
+            } yield()
             case _ => Applicative[F].unit
           }
 
@@ -327,10 +348,9 @@ object CorporateBotService {
               (for {
                 personOpt <- peopleRepository.findById(corporateUser.id)
                 corporateOpt <- corporationsRepository.findById(corporateUser.corporateId)
-                assetOpt <- corporateUser.assetId.traverse(assetsRepository.findAsset)
-              } yield (personOpt, corporateOpt, assetOpt.flatten)).flatMap {
-                case (Some(person), Some(corporate), Some(asset)) =>
-                  sendUserInfo(user.id, corporateUser.role, person, corporate.name, asset)
+              } yield (personOpt, corporateOpt)).flatMap {
+                case (Some(person), Some(corporate)) =>
+                  sendUserInfo(user.id, corporateUser.role, person, corporate.name)
                 case _ => Applicative[F].unit
               }
 
@@ -367,15 +387,15 @@ object CorporateBotService {
               personIdOpt.fold(Applicative[F].unit) { personId =>
                 (
                   redis.get(user.id.toString + "+phone"),
-                  redis.get(user.id.toString + "+photo"),
+//                  redis.get(user.id.toString + "+photo"),
                   redis.get(user.id.toString + "+companyName"),
                   redis.get(user.id.toString + "+location"),
                 ).tupled.flatMap {
-                  case (Some(phone), Some(photo), Some(companyName), Some(location)) =>
+                  case (Some(phone), Some(companyName), Some(location)) =>
                     for {
                       id <- ID.make[F, CorporateId]
                       now <- Calendar[F].currentZonedDateTime
-                      _ = println(phone, photo, companyName, location)
+                      _ = println(phone, companyName, location)
                       company = Corporate(
                         id = id,
                         createdAt = now,
@@ -391,7 +411,7 @@ object CorporateBotService {
                           createdAt = now,
                           role = role,
                           phone = phone,
-                          assetId = AssetId(UUID.fromString(photo)).some,
+                          assetId = None,
                           corporateId = id,
                           password = NonEmptyString(
                             "$s0$e0801$5JK3Ogs35C2h5htbXQoeEQ==$N7HgNieSnOajn1FuEB7l4PhC6puBSq+e1E8WUaSJcGY="
@@ -403,15 +423,7 @@ object CorporateBotService {
                         messageId = message.messageId,
                       )
                       person <- peopleRepository.findById(personId)
-                      _ <- person.fold(Applicative[F].unit) { person =>
-                        assetsRepository
-                          .findAsset(AssetId(UUID.fromString(photo)))
-                          .flatMap(assetOpt =>
-                            assetOpt.fold(Applicative[F].unit) { asset =>
-                              sendUserInfo(user.id, role, person, company.name, asset)
-                            }
-                          )
-                      }
+                      _ <- person.fold(Applicative[F].unit){person => sendUserInfo(user.id, role, person, company.name)}
                       _ <- redis.del(user.id.toString + "+phone")
                       _ <- redis.del(user.id.toString + "+photo")
                       _ <- redis.del(user.id.toString + "+companyName")
@@ -425,12 +437,6 @@ object CorporateBotService {
       }
 
     private def handleCallbackData(data: NonEmptyString): F[Unit] = {
-      val regexData =
-        """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})__(\d{2})__(\d{2})""".r
-      val regexWeek =
-        """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})__(\d{2})""".r
-      val regexMonth = """([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})""".r
-
       data.value match {
         case _ => logger.warn("unknown data type")
       }
@@ -516,8 +522,8 @@ object CorporateBotService {
                 s"$company dagi lavozimingiz:",
                 replyMarkup = ReplyInlineKeyboardMarkup(
                   List(
-                    List(InlineKeyboardButton("Direktor", "director".some)),
-                    List(InlineKeyboardButton("Manager", "manager".some)),
+                    List(InlineKeyboardButton("Direktor", "director")),
+                    List(InlineKeyboardButton("Manager", "manager")),
                   )
                 ).some,
               )
@@ -530,22 +536,15 @@ object CorporateBotService {
         role: Role,
         person: dto.Person,
         corporateName: NonEmptyString,
-        asset: Asset,
       ): F[Unit] =
-      s3Client.downloadObject(asset.s3Key.value).compile.to(Array).flatMap { byteArray =>
-        telegramClient.sendPhoto(
+        telegramClient.sendMessage(
           chatId = chatId,
-          photo = byteArray,
-          caption = s"""Ism Familiya: ${person.fullName}
-                       |Tug'ilgan kun: ${person.dateOfBirth}
-                       |Hujjat raqami: ${person.documentNumber}
+          text = s"""Ism Familiya: ${person.fullName}
                        |Jins: ${person.gender}
-                       |Pinfl: ${person.pinflNumber}
                        |
-                       |Lavozim: $role""".stripMargin.some,
+                       |Lavozim: $role""".stripMargin,
           replyMarkup = menuButtons(corporateName.value).some,
         )
-      }
 
     private def sendCompanySetting(chatId: Long): F[Unit] =
       (for {
@@ -582,26 +581,15 @@ object CorporateBotService {
       telegramClient.sendMessage(
         chatId,
         "Xodimlar ma'lumotlarini kiritish uchun quyidagi mini ilovadan foydalaning!",
-//        entities = List(
-//          MessageEntity(MessageEntityType.TextLink, 0, 5, s"$appDomain/form/create-employee".some)
-//        ).some,
         replyMarkup = ReplyInlineKeyboardMarkup(
           List(
             List(
               InlineKeyboardButton(
                 "Ilovani ochish",
-                None,
+                "None",
                 WebAppInfo(s"$appDomain/form/create-employee").some,
               )
             )
-//            List(
-//              InlineKeyboardButton(
-//                "Sahifani ochish",
-//                None,
-//                None,
-//                s"$appDomain/form/create-employee".some,
-//              )
-//            )
           )
         ).some,
       )

@@ -6,7 +6,7 @@ import io.circe.generic.extras.ConfiguredJsonCodec
 @ConfiguredJsonCodec
 case class InlineKeyboardButton(
     text: String,
-    callbackData: Option[String],
+    callbackData: String,
     webApp: Option[WebAppInfo] = None,
     url: Option[String] = None,
   )

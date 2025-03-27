@@ -6,6 +6,7 @@ import skunk._
 import tm.domain.PersonId
 import tm.domain.telegram.BotUser
 import tm.effects.Calendar
+import tm.repositories.dto.User
 import tm.repositories.sql.TelegramSql
 import tm.support.skunk.syntax.all.skunkSyntaxCommandOps
 import tm.support.skunk.syntax.all.skunkSyntaxQueryOps
@@ -13,6 +14,7 @@ import tm.support.skunk.syntax.all.skunkSyntaxQueryOps
 trait TelegramRepository[F[_]] {
   def createBotUser(user: BotUser): F[Unit]
   def findByChatId(chatId: Long): F[Option[PersonId]]
+  def findUser(chatId: Long): F[Option[User]]
   def findCorporateName(chatId: Long): F[Option[NonEmptyString]]
 }
 
@@ -29,5 +31,8 @@ object TelegramRepository {
 
     override def findCorporateName(chatId: Long): F[Option[NonEmptyString]] =
       TelegramSql.findCorporateName.queryOption(chatId)
+
+    override def findUser(chatId: Long): F[Option[User]] =
+      TelegramSql.findUser.queryOption(chatId)
   }
 }

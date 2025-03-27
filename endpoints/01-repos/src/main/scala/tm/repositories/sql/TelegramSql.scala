@@ -6,6 +6,7 @@ import skunk.codec.all.int8
 import skunk.implicits._
 import tm.domain.PersonId
 import tm.domain.telegram.BotUser
+import tm.repositories.dto.User
 import tm.support.skunk.Sql
 import tm.support.skunk.codecs.nes
 
@@ -31,4 +32,26 @@ private[repositories] object TelegramSql extends Sql {
       WHERE tbu.chat_id = $int8
       LIMIT 1
     """.query(nes)
+
+  val findUser: Query[Long, User] =
+    sql"""
+      SELECT
+        p.id,
+        u.created_at,
+        p.full_name,
+        c.id,
+        c.name,
+        u.role,
+        u.asset_id,
+        u.phone
+      FROM users u
+      INNER JOIN people p
+        ON p.id = u.id
+      INNER JOIN corporations c
+        ON c.id = u.corporate_id
+      INNER JOIN telegram_bot_users tbu
+        ON  u.id = tbu.person_id
+      WHERE tbu.chat_id = $int8
+      LIMIT 1
+    """.query(UsersSql.dtoUserCodec)
 }

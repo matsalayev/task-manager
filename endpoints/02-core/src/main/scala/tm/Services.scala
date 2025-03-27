@@ -45,10 +45,13 @@ object Services {
         s3Client,
       ),
       employeeBotService = EmployeeBotService.make[F](
+        repositories.telegramRepository,
+        repositories.users,
+        repositories.people,
+        repositories.corporationsRepository,
+        repositories.projectsRepository,
+        repositories.tasksRepository,
         telegramClientEmployee,
-//        repositories.telegramRepository,
-//        repositories.corporationsRepository,
-//        repositories.projectsRepository,
         redis
       ),
       tasksService = TasksService.make[F](repositories.tasksRepository),

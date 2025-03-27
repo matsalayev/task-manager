@@ -12,15 +12,15 @@ import tm.support.skunk.codecs.nes
 import tm.support.skunk.codecs.zonedDateTime
 
 private[repositories] object ProjectsSql extends Sql[ProjectId] {
-  private val codec: Codec[Project] =
+  private[repositories] val codec: Codec[Project] =
     (id *: zonedDateTime *: PeopleSql.id *: CorporationsSql.id *: nes *: nes.opt)
       .to[Project]
 
   val insert: Command[Project] =
     sql"""INSERT INTO projects VALUES ($codec)""".command
 
-  val getAll: Query[CorporateId, Project] =
-    sql"""SELECT * FROM projects WHERE corporate_id = ${CorporationsSql.id}""".query(codec)
+  def getAll(corporateId: CorporateId): AppliedFragment=
+    sql"""SELECT *, COUNT(*) OVER() FROM projects WHERE corporate_id = ${CorporationsSql.id}""".apply(corporateId)
 
   val findById: Query[ProjectId, Project] =
     sql"""SELECT * FROM projects WHERE id = $id LIMIT 1""".query(codec)

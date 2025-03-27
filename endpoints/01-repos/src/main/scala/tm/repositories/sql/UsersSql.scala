@@ -21,7 +21,7 @@ private[repositories] object UsersSql extends Sql[PersonId] {
   private val corporateUserCodec =
     (id *: zonedDateTime *: role *: phone *: AssetsSql.id.opt *: CorporationsSql.id *: nes)
       .to[corporate.User]
-  private val dtoUserCodec =
+  private[repositories] val dtoUserCodec =
     (id *: zonedDateTime *: nes *: CorporationsSql.id *: nes *: role *: AssetsSql.id.opt *: phone)
       .to[dto.User]
 
