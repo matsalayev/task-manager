@@ -3,6 +3,7 @@ package tm.repositories
 import cats.effect.Resource
 import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
+
 import tm.domain.PersonId
 import tm.domain.telegram.BotUser
 import tm.effects.Calendar

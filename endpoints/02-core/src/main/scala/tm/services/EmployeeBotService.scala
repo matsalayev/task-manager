@@ -2,7 +2,9 @@ package tm.services
 
 import java.time.Duration
 import java.util.UUID
+
 import scala.concurrent.duration.DurationInt
+
 import cats.Applicative
 import cats.Monad
 import cats.implicits.catsSyntaxApplyOps
@@ -11,11 +13,19 @@ import cats.implicits.toFlatMapOps
 import cats.implicits.toFunctorOps
 import eu.timepit.refined.types.string.NonEmptyString
 import org.typelevel.log4cats.Logger
+
 import tm.Phone
-import tm.domain.{PersonId, ProjectId, TaskId}
+import tm.domain.PersonId
+import tm.domain.ProjectId
+import tm.domain.TaskId
 import tm.domain.enums.TaskStatus
 import tm.domain.project.Project
-import tm.domain.telegram.{BotUser, CallbackQuery, Contact, Message, Update, User}
+import tm.domain.telegram.BotUser
+import tm.domain.telegram.CallbackQuery
+import tm.domain.telegram.Contact
+import tm.domain.telegram.Message
+import tm.domain.telegram.Update
+import tm.domain.telegram.User
 import tm.effects.Calendar
 import tm.effects.GenUUID
 import tm.integrations.telegram.TelegramClient
@@ -139,11 +149,11 @@ object EmployeeBotService {
               }
 
             case None =>
-                telegramClient.sendMessage(
-                  user.id,
-                  "Uzr, sizni foydalanuvchilar orasidan topa olmadik! ",
-                  replyMarkup = ReplyKeyboardRemove().some,
-                )
+              telegramClient.sendMessage(
+                user.id,
+                "Uzr, sizni foydalanuvchilar orasidan topa olmadik! ",
+                replyMarkup = ReplyKeyboardRemove().some,
+              )
           }
 
         case _ => Applicative[F].unit

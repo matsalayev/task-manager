@@ -19,8 +19,9 @@ private[repositories] object ProjectsSql extends Sql[ProjectId] {
   val insert: Command[Project] =
     sql"""INSERT INTO projects VALUES ($codec)""".command
 
-  def getAll(corporateId: CorporateId): AppliedFragment=
-    sql"""SELECT *, COUNT(*) OVER() FROM projects WHERE corporate_id = ${CorporationsSql.id}""".apply(corporateId)
+  def getAll(corporateId: CorporateId): AppliedFragment =
+    sql"""SELECT *, COUNT(*) OVER() FROM projects WHERE corporate_id = ${CorporationsSql.id}"""
+      .apply(corporateId)
 
   val findById: Query[ProjectId, Project] =
     sql"""SELECT * FROM projects WHERE id = $id LIMIT 1""".query(codec)

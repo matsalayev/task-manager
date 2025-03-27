@@ -1,11 +1,12 @@
 package tm.repositories
 
 import cats.effect.Resource
-import cats.implicits.toFunctorOps
 import cats.implicits.toFlatMapOps
+import cats.implicits.toFunctorOps
 import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
 import skunk.codec.all.int8
+
 import tm.domain.CorporateId
 import tm.domain.PaginatedResponse
 import tm.domain.ProjectId

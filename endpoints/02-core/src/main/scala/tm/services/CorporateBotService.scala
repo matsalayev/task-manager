@@ -301,35 +301,36 @@ object CorporateBotService {
             redis.get(user.id.toString + "+full_name"),
             redis.put(user.id.toString + "+companyName", companyName, 60.minute),
           ).tupled.flatMap {
-            case (Some(_), Some(fullName), _) =>for{
-              id <- ID.make[F, PersonId]
-              now <- Calendar[F].currentZonedDateTime
-              gender = if (fullName.last == 'a') Gender.Female else Gender.Male
-              _ <- peopleRepository.create(
-                dto.Person(
-                  id = id,
-                  createdAt = now,
-                  fullName = fullName,
-                  gender = gender,
-                  dateOfBirth = None,
-                  documentNumber = None,
-                  pinflNumber = None,
-                  updatedAt = None,
-                  deletedAt = None,
+            case (Some(_), Some(fullName), _) =>
+              for {
+                id <- ID.make[F, PersonId]
+                now <- Calendar[F].currentZonedDateTime
+                gender = if (fullName.last == 'a') Gender.Female else Gender.Male
+                _ <- peopleRepository.create(
+                  dto.Person(
+                    id = id,
+                    createdAt = now,
+                    fullName = fullName,
+                    gender = gender,
+                    dateOfBirth = None,
+                    documentNumber = None,
+                    pinflNumber = None,
+                    updatedAt = None,
+                    deletedAt = None,
+                  )
                 )
-              )
-              _ <- saveBotUser(user.id, id)
-              _ <- redis.del(user.id.toString + "+full_name")
-              msg = s"Kamponiya nomi: $companyName "
-              ask = "Iltimos kamponiyangiz manzilini yuboring. "
-              _ <- telegramClient.sendMessage(
-                user.id,
-                s"$msg\n\n$ask",
-                entities = List(
-                  MessageEntity(MessageEntityType.Italic, msg.length + 2, ask.length)
-                ).some,
-              )
-            } yield()
+                _ <- saveBotUser(user.id, id)
+                _ <- redis.del(user.id.toString + "+full_name")
+                msg = s"Kamponiya nomi: $companyName "
+                ask = "Iltimos kamponiyangiz manzilini yuboring. "
+                _ <- telegramClient.sendMessage(
+                  user.id,
+                  s"$msg\n\n$ask",
+                  entities = List(
+                    MessageEntity(MessageEntityType.Italic, msg.length + 2, ask.length)
+                  ).some,
+                )
+              } yield ()
             case _ => Applicative[F].unit
           }
 
@@ -423,7 +424,9 @@ object CorporateBotService {
                         messageId = message.messageId,
                       )
                       person <- peopleRepository.findById(personId)
-                      _ <- person.fold(Applicative[F].unit){person => sendUserInfo(user.id, role, person, company.name)}
+                      _ <- person.fold(Applicative[F].unit) { person =>
+                        sendUserInfo(user.id, role, person, company.name)
+                      }
                       _ <- redis.del(user.id.toString + "+phone")
                       _ <- redis.del(user.id.toString + "+photo")
                       _ <- redis.del(user.id.toString + "+companyName")
@@ -436,11 +439,10 @@ object CorporateBotService {
         case _ => logger.warn("unknown callback query structure")
       }
 
-    private def handleCallbackData(data: NonEmptyString): F[Unit] = {
+    private def handleCallbackData(data: NonEmptyString): F[Unit] =
       data.value match {
         case _ => logger.warn("unknown data type")
       }
-    }
 
     private def handlePhotoMessage(
         user: User,
@@ -537,14 +539,14 @@ object CorporateBotService {
         person: dto.Person,
         corporateName: NonEmptyString,
       ): F[Unit] =
-        telegramClient.sendMessage(
-          chatId = chatId,
-          text = s"""Ism Familiya: ${person.fullName}
+      telegramClient.sendMessage(
+        chatId = chatId,
+        text = s"""Ism Familiya: ${person.fullName}
                        |Jins: ${person.gender}
                        |
                        |Lavozim: $role""".stripMargin,
-          replyMarkup = menuButtons(corporateName.value).some,
-        )
+        replyMarkup = menuButtons(corporateName.value).some,
+      )
 
     private def sendCompanySetting(chatId: Long): F[Unit] =
       (for {

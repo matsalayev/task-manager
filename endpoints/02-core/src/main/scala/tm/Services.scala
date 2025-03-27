@@ -5,6 +5,7 @@ import cats.effect.Async
 import cats.effect.std.Random
 import eu.timepit.refined.types.string.NonEmptyString
 import org.typelevel.log4cats.Logger
+
 import tm.auth.AuthConfig
 import tm.auth.impl.Auth
 import tm.domain.auth.AccessCredentials
@@ -31,7 +32,7 @@ object Services {
       s3Client: S3Client[F],
       telegramClientCorporate: TelegramClient[F],
       telegramClientEmployee: TelegramClient[F],
-      appDomain:NonEmptyString
+      appDomain: NonEmptyString,
     ): Services[F] = {
     def findUser: Phone => F[Option[AccessCredentials[AuthedUser]]] = phone =>
       OptionT(repositories.users.find(phone))
@@ -52,7 +53,7 @@ object Services {
         repositories.projectsRepository,
         repositories.tasksRepository,
         telegramClientEmployee,
-        redis
+        redis,
       ),
       tasksService = TasksService.make[F](repositories.tasksRepository),
       corporateBotService = CorporateBotService.make[F](
@@ -65,7 +66,7 @@ object Services {
         repositories.assetsRepository,
         s3Client,
         redis,
-        appDomain
+        appDomain,
       ),
       employeeService = EmployeeService.make[F](repositories.people, repositories.users),
     )

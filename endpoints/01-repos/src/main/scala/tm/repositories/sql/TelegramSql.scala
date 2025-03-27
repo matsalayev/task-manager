@@ -4,6 +4,7 @@ import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
 import skunk.codec.all.int8
 import skunk.implicits._
+
 import tm.domain.PersonId
 import tm.domain.telegram.BotUser
 import tm.repositories.dto.User

@@ -2,6 +2,7 @@ package tm.services
 
 import cats.MonadThrow
 import cats.implicits._
+
 import tm.domain.CorporateId
 import tm.domain.PersonId
 import tm.domain.ProjectId
@@ -63,7 +64,8 @@ object EmployeeService {
                     phone = data.phone,
                     assetId = None,
                     corporateId = user.corporateId,
-                    password = "$s0$e0801$5JK3Ogs35C2h5htbXQoeEQ==$N7HgNieSnOajn1FuEB7l4PhC6puBSq+e1E8WUaSJcGY=",
+                    password =
+                      "$s0$e0801$5JK3Ogs35C2h5htbXQoeEQ==$N7HgNieSnOajn1FuEB7l4PhC6puBSq+e1E8WUaSJcGY=",
                   )
                 )
               } yield ()
