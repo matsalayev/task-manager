@@ -522,8 +522,8 @@ object CorporateBotService {
                 s"$company dagi lavozimingiz:",
                 replyMarkup = ReplyInlineKeyboardMarkup(
                   List(
-                    List(InlineKeyboardButton("Direktor", "director")),
-                    List(InlineKeyboardButton("Manager", "manager")),
+                    List(InlineKeyboardButton("Direktor", "director".some)),
+                    List(InlineKeyboardButton("Manager", "manager".some)),
                   )
                 ).some,
               )
@@ -586,8 +586,7 @@ object CorporateBotService {
             List(
               InlineKeyboardButton(
                 "Ilovani ochish",
-                "None",
-                WebAppInfo(s"$appDomain/form/create-employee").some,
+                url = s"$appDomain/form/create-employee".some,
               )
             )
           )

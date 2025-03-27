@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task yaratish</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+        body {
+            background-color: #121212;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background: #1E1E1E;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(255, 255, 255, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        label {
+            font-size: 14px;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background: #2C2C2C;
+            color: white;
+        }
+        .drop-area {
+            border: 2px dashed #007bff;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        .tag-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .add-tag {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1E1E1E;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(255, 255, 255, 0.1);
+        }
+        .modal input {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .modal button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .save {
+            width: 100%;
+            padding: 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .save:hover {
+            background: #218838;
+        }
+
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Task yaratish</h2>
+    <form id="taskForm">
+        <label for="projectId">Project</label>
+        <select id="projectId" required>
+            <option value="1">Loyiha 1</option>
+            <option value="2">Loyiha 2</option>
+        </select>
+
+        <label for="name">Task nomi</label>
+        <input type="text" id="name" required>
+
+        <label for="description">Tavsif</label>
+        <textarea id="description"></textarea>
+
+        <label>Tag</label>
+        <div class="tag-container">
+            <select id="tagId">
+                <option value="urgent" style="color: red;">Urgent</option>
+                <option value="normal" style="color: yellow;">Normal</option>
+            </select>
+            <button type="button" class="add-tag" onclick="openTagModal()">+</button>
+        </div>
+
+        <label>Rasm yuklash</label>
+        <div class="drop-area" id="dropArea">Faylni sudrab olib kelib tashlang yoki bosing</div>
+
+
+        <label for="deadline">Deadline</label>
+        <input type="datetime-local" id="deadline">
+
+        <button class="save" type="submit">Saqlash</button>
+    </form>
+    <p class="message" id="responseMessage"></p>
+</div>
+
+<div class="modal" id="tagModal">
+    <h3>Yangi Tag</h3>
+    <input type="text" id="newTagName" placeholder="Tag nomi" required>
+    <input type="color" id="newTagColor" value="#ff0000">
+    <button onclick="addNewTag()">Qo‘shish</button>
+    <button onclick="closeTagModal()">Bekor qilish</button>
+</div>
+
+<script>
+    function openTagModal() {
+        document.getElementById("tagModal").style.display = "block";
+    }
+
+    function closeTagModal() {
+        document.getElementById("tagModal").style.display = "none";
+    }
+
+    function addNewTag() {
+        const tagName = document.getElementById("newTagName").value.trim();
+        const tagColor = document.getElementById("newTagColor").value;
+        if (!tagName) return;
+
+        let newOption = document.createElement("option");
+        newOption.value = tagName.toLowerCase();
+        newOption.textContent = tagName;
+        newOption.style.color = tagColor;
+        document.getElementById("tagId").appendChild(newOption);
+
+        closeTagModal();
+    }
+</script>
+</body>
+</html>

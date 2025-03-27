@@ -167,7 +167,7 @@ object EmployeeBotService {
               user.id,
               message.messageId,
               ReplyInlineKeyboardMarkup(
-                List(List(InlineKeyboardButton("❌ Bekor qilish", s"goBackToFolders_$page")))
+                List(List(InlineKeyboardButton("❌ Bekor qilish", s"goBackToFolders_$page".some)))
               ).some,
             )
             _ <- redisClient.put(
@@ -275,7 +275,7 @@ object EmployeeBotService {
               user.id,
               message.messageId,
               ReplyInlineKeyboardMarkup(
-                List(List(InlineKeyboardButton("❌ Bekor qilish", folderId + s"_folder_$page")))
+                List(List(InlineKeyboardButton("❌ Bekor qilish", (folderId + s"_folder_$page").some)))
               ).some,
             )
             _ <- redisClient.put(
@@ -323,7 +323,7 @@ object EmployeeBotService {
                 List(
                   InlineKeyboardButton(
                     "\uD83D\uDCC2 " + project.name.value,
-                    project.id.toString + "_folder_1",
+                    (project.id.toString + "_folder_1").some,
                   )
                 )
               }
@@ -337,10 +337,10 @@ object EmployeeBotService {
                 text = "\uD83D\uDDC2 Quyidagi jildlardan birini tanlang:",
                 replyMarkup = ReplyInlineKeyboardMarkup(
                   buttons :+ List(
-                    InlineKeyboardButton("⬅\uFE0F", previousPage),
-                    InlineKeyboardButton("1⃣", currentPage),
-                    InlineKeyboardButton("➡\uFE0F", nextPage),
-                  ) :+ List(InlineKeyboardButton("➕", "createFolder_1"))
+                    InlineKeyboardButton("⬅\uFE0F", previousPage.some),
+                    InlineKeyboardButton("1⃣", currentPage.some),
+                    InlineKeyboardButton("➡\uFE0F", nextPage.some),
+                  ) :+ List(InlineKeyboardButton("➕", "createFolder_1".some))
                 ).some,
               )
             } yield ()
@@ -363,7 +363,7 @@ object EmployeeBotService {
                 List(
                   InlineKeyboardButton(
                     "\uD83D\uDCC2 " + project.name.value,
-                    project.id.toString + "_folder_" + page,
+                    (project.id.toString + "_folder_" + page).some,
                   )
                 )
               }
@@ -385,10 +385,10 @@ object EmployeeBotService {
                 messageId = messageId,
                 replyMarkup = ReplyInlineKeyboardMarkup(
                   buttons :+ List(
-                    InlineKeyboardButton("⬅\uFE0F", previousPage),
-                    InlineKeyboardButton(page.toString.map(c => s"$c⃣").mkString(""), currentPage),
-                    InlineKeyboardButton("➡\uFE0F", nextPage),
-                  ) :+ List(InlineKeyboardButton("➕", "createFolder_" + page))
+                    InlineKeyboardButton("⬅\uFE0F", previousPage.some),
+                    InlineKeyboardButton(page.toString.map(c => s"$c⃣").mkString(""), currentPage.some),
+                    InlineKeyboardButton("➡\uFE0F", nextPage.some),
+                  ) :+ List(InlineKeyboardButton("➕", ("createFolder_" + page).some))
                 ).some,
               )
 
