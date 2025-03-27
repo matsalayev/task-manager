@@ -10,23 +10,20 @@ import tm.ObjectId
 import tm.domain.asset.FileMeta
 import tm.domain.auth.AuthedUser
 import tm.exception.AError
-import tm.services.AssetsService
+import tm.services.ProjectsService
 import tm.support.http4s.utils.Routes
 import tm.support.syntax.all.deriveEntityEncoder
 import tm.support.syntax.all.http4SyntaxPartOps
 import tm.syntax.circe._
 
 final case class AssetsRoutes[F[_]: JsonDecoder: Async](
-    assets: AssetsService[F]
+    assets: ProjectsService[F]
   ) extends Routes[F, AuthedUser] {
   override val path = "/assets"
 
   private val AllowedMediaTypes: List[MediaType] = List(
     MediaType.image.png,
     MediaType.image.jpeg,
-    MediaType.unsafeParse("text/csv"),
-    MediaType.unsafeParse("application/vnd.ms-excel"),
-    MediaType.unsafeParse("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
   )
 
   override val public: HttpRoutes[F] = HttpRoutes.empty[F]

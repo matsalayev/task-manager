@@ -155,21 +155,7 @@
                      return;
                  }
 
-                 // Token bilan bog‘liq so‘rov
-                 const protectedResponse = await fetch("/form/create-employee", {
-                     method: "GET",
-                     headers: {
-                         "Authorization": `Bearer ${accessToken}`
-                     }
-                 });
-
-                 if (protectedResponse.status === 200) {
-                     window.location.href = "/form/create-employee";
-                 } else {
-                     responseMessage.textContent = "Himoyalangan sahifaga o‘tishda xatolik!";
-                     responseMessage.className = "message error";
-                     responseMessage.style.display = "block";
-                 }
+                 window.history.back();
              }, 2000);
          } else {
              responseMessage.textContent = `Xatolik: ${result.message || "Telefon yoki parol noto‘g‘ri!"}`;

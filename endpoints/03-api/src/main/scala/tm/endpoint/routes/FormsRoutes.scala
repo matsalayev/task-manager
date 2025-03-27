@@ -13,12 +13,12 @@ import tm.services.EmployeeService
 import tm.support.http4s.utils.Routes
 import tm.support.syntax.all.http4SyntaxReqOps
 
-final case class FormRoutes[F[_]: Concurrent: FileLoader: JsonDecoder](
+final case class FormsRoutes[F[_]: Concurrent: FileLoader: JsonDecoder](
     employeeService: EmployeeService[F]
   )(implicit
     logger: Logger[F]
   ) extends Routes[F, AuthedUser] {
-  override val path = "/form"
+  override val path = "/forms"
 
   override val public: HttpRoutes[F] = HttpRoutes.of[F] {
     case GET -> Root / "login" =>
@@ -28,7 +28,7 @@ final case class FormRoutes[F[_]: Concurrent: FileLoader: JsonDecoder](
           Ok(content.trim).map(_.withContentType(headers.`Content-Type`(MediaType.text.html)))
         )
 
-    case GET -> Root / "create-employee" =>
+    case GET -> Root / "create-employee" / _ =>
       FileLoader[F]
         .resourceAsString("forms/create-employee.html")
         .flatMap(content =>

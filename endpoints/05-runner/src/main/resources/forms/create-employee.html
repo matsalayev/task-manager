@@ -150,7 +150,7 @@
     const accessToken = localStorage.getItem("accessToken");
     if (!accessToken) {
         alert("Avval tizimga kiring!");
-        window.location.href = "/form/login"; // **Agar token yo‘q bo‘lsa, login sahifasiga yo‘naltiramiz**
+        window.location.href = "/forms/login"; // **Agar token yo‘q bo‘lsa, login sahifasiga yo‘naltiramiz**
     }
 
     document.getElementById("employeeForm").addEventListener("submit", async function(event) {
@@ -175,7 +175,7 @@
         };
 
         try {
-    const response = await fetch("/form/create-employee/submit", {
+    const response = await fetch("/forms/create-employee/submit", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

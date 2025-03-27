@@ -22,6 +22,7 @@ case class Services[F[_]](
     corporateBotService: CorporateBotService[F],
     employeeBotService: EmployeeBotService[F],
     employeeService: EmployeeService[F],
+    projectsService: ProjectsService[F],
   )
 
 object Services {
@@ -57,6 +58,7 @@ object Services {
       ),
       tasksService = TasksService.make[F](repositories.tasksRepository),
       corporateBotService = CorporateBotService.make[F](
+        Auth.make[F, AuthedUser](config.user, findUser, redis),
         telegramClientCorporate,
         repositories.telegramRepository,
         repositories.people,
@@ -69,6 +71,10 @@ object Services {
         appDomain,
       ),
       employeeService = EmployeeService.make[F](repositories.people, repositories.users),
+      projectsService = ProjectsService.make[F](
+        repositories.assetsRepository,
+        s3Client,
+      ),
     )
   }
 }

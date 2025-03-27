@@ -285,7 +285,9 @@ object EmployeeBotService {
               user.id,
               message.messageId,
               ReplyInlineKeyboardMarkup(
-                List(List(InlineKeyboardButton("❌ Bekor qilish", (folderId + s"_folder_$page").some)))
+                List(
+                  List(InlineKeyboardButton("❌ Bekor qilish", (folderId + s"_folder_$page").some))
+                )
               ).some,
             )
             _ <- redisClient.put(
@@ -396,7 +398,10 @@ object EmployeeBotService {
                 replyMarkup = ReplyInlineKeyboardMarkup(
                   buttons :+ List(
                     InlineKeyboardButton("⬅\uFE0F", previousPage.some),
-                    InlineKeyboardButton(page.toString.map(c => s"$c⃣").mkString(""), currentPage.some),
+                    InlineKeyboardButton(
+                      page.toString.map(c => s"$c⃣").mkString(""),
+                      currentPage.some,
+                    ),
                     InlineKeyboardButton("➡\uFE0F", nextPage.some),
                   ) :+ List(InlineKeyboardButton("➕", ("createFolder_" + page).some))
                 ).some,

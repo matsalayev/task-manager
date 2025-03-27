@@ -22,6 +22,7 @@ import eu.timepit.refined.types.string.NonEmptyString
 import org.typelevel.log4cats.Logger
 
 import tm.Phone
+import tm.auth.impl.Auth
 import tm.domain.AssetId
 import tm.domain.CorporateId
 import tm.domain.LocationId
@@ -72,6 +73,7 @@ trait CorporateBotService[F[_]] {
 
 object CorporateBotService {
   def make[F[_]: Monad: GenUUID: Calendar: Sync](
+      auth: Auth[F, AuthedUser],
       telegramClient: TelegramClient[F],
       telegramRepository: TelegramRepository[F],
       peopleRepository: PeopleRepository[F],
@@ -579,7 +581,8 @@ object CorporateBotService {
         }
       } yield result).getOrElseF(Applicative[F].unit)
 
-    private def addEmployee(chatId: Long): F[Unit] =
+    private def addEmployee(chatId: Long): F[Unit] = {
+      auth.login()
       telegramClient.sendMessage(
         chatId,
         "Xodimlar ma'lumotlarini kiritish uchun quyidagi mini ilovadan foydalaning!",
@@ -594,6 +597,7 @@ object CorporateBotService {
           )
         ).some,
       )
+    }
 
     private def sendEmployees(
         chatId: Long
