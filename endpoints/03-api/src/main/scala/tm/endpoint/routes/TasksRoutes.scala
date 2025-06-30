@@ -21,8 +21,5 @@ final case class TasksRoutes[F[_]: Concurrent: FileLoader: JsonDecoder](
 
   override val public: HttpRoutes[F] = HttpRoutes.empty
 
-  override val `private`: AuthedRoutes[AuthedUser, F] = AuthedRoutes.of {
-    case GET -> Root / "get" as user =>
-      projects.get(user.corporateId).flatMap(Ok(_))
-  }
+  override val `private`: AuthedRoutes[AuthedUser, F] = AuthedRoutes.empty
 }

@@ -17,7 +17,7 @@ import tm.support.skunk.codecs.phone
 import tm.support.skunk.codecs.zonedDateTime
 
 private[repositories] object UsersSql extends Sql[PersonId] {
-  private val codec = (id *: role *: phone).to[User]
+  private val codec = (id *: CorporationsSql.id *: role *: phone).to[User]
   private val corporateUserCodec =
     (id *: zonedDateTime *: role *: phone *: AssetsSql.id.opt *: CorporationsSql.id *: nes)
       .to[corporate.User]
@@ -37,7 +37,7 @@ private[repositories] object UsersSql extends Sql[PersonId] {
   val findByLogin: Query[Phone, AccessCredentials[User]] =
     sql"""
       SELECT
-        id, role, phone, password
+        id, corporate_id, role, phone, password
       FROM users
       WHERE
         phone = $phone

@@ -29,7 +29,7 @@ object HttpModule {
         ),
         new FormsRoutes[F](env.services.employeeService),
         new AuthRoutes[F](env.services.auth),
-        new AssetsRoutes[F](env.services.assets),
+        new AssetsRoutes[F](env.services.projectsService),
       )
       .map { r =>
         Router(

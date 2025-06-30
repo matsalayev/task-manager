@@ -544,9 +544,8 @@ object CorporateBotService {
       telegramClient.sendMessage(
         chatId = chatId,
         text = s"""Ism Familiya: ${person.fullName}
-                       |Jins: ${person.gender}
                        |
-                       |Lavozim: $role""".stripMargin,
+                       |parol: 'Secret1!'""".stripMargin,
         replyMarkup = menuButtons(corporateName.value).some,
       )
 
@@ -582,7 +581,6 @@ object CorporateBotService {
       } yield result).getOrElseF(Applicative[F].unit)
 
     private def addEmployee(chatId: Long): F[Unit] = {
-      auth.login()
       telegramClient.sendMessage(
         chatId,
         "Xodimlar ma'lumotlarini kiritish uchun quyidagi mini ilovadan foydalaning!",
