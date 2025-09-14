@@ -580,7 +580,7 @@ object CorporateBotService {
         }
       } yield result).getOrElseF(Applicative[F].unit)
 
-    private def addEmployee(chatId: Long): F[Unit] = {
+    private def addEmployee(chatId: Long): F[Unit] =
       telegramClient.sendMessage(
         chatId,
         "Xodimlar ma'lumotlarini kiritish uchun quyidagi mini ilovadan foydalaning!",
@@ -595,7 +595,6 @@ object CorporateBotService {
           )
         ).some,
       )
-    }
 
     private def sendEmployees(
         chatId: Long
