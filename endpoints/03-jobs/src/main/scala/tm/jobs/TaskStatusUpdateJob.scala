@@ -2,13 +2,10 @@ package tm.jobs
 
 import java.time.ZonedDateTime
 
-import cats.effect.Sync
-import cats.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import tm.JobsEnvironment
-import tm.repositories.TasksRepository
 import tm.support.jobs.CronJob
 
 object TaskStatusUpdateJob extends CronJob[cats.effect.IO, JobsEnvironment[cats.effect.IO]] {

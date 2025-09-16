@@ -5,8 +5,6 @@ import cats.implicits._
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.circe.JsonDecoder
-import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
-import org.http4s.dsl.impl.QueryParamDecoderMatcher
 import org.typelevel.log4cats.Logger
 
 import tm.domain.ProjectId

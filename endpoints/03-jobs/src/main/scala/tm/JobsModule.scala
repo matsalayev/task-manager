@@ -5,14 +5,10 @@ import cats.effect.Async
 import cats.effect.ExitCode
 import cats.effect.Temporal
 import cats.implicits._
-import cron4s._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import tm.effects.Calendar
-import tm.jobs.TaskCleanupJob
-import tm.jobs.TaskReminderJob
-import tm.jobs.TaskStatusUpdateJob
 import tm.support.jobs._
 
 case class JobsModule[F[_]: Async: Parallel: Logger: Temporal](
