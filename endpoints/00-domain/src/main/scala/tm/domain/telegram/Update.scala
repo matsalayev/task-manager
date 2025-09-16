@@ -2,7 +2,6 @@ package tm.domain.telegram
 
 import io.circe.generic.extras.Configuration
 import io.circe.generic.extras.ConfiguredJsonCodec
-import io.circe.refined._
 
 @ConfiguredJsonCodec
 case class Update(

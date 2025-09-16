@@ -12,8 +12,8 @@ import tm.support.skunk.syntax.all.skunkSyntaxCommandOps
 
 object data extends Generators with PeopleGenerators {
   object people {
-    val person1: dto.Person = personGen
-    val person2: dto.Person = personGen
+    val person1: dto.Person = personGen(personIdGen.gen).gen
+    val person2: dto.Person = personGen(personIdGen.gen).gen
     val values: List[dto.Person] = List(person1, person2)
   }
 

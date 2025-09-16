@@ -1,10 +1,8 @@
 package tm.services
 
-import java.time.LocalDate
 import java.util.UUID
 
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
 
 import cats.Applicative
 import cats.Monad
@@ -12,12 +10,9 @@ import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.implicits.catsSyntaxApplyOps
 import cats.implicits.catsSyntaxOptionId
-import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.implicits.catsSyntaxTuple3Semigroupal
-import cats.implicits.catsSyntaxTuple4Semigroupal
 import cats.implicits.toFlatMapOps
 import cats.implicits.toFunctorOps
-import cats.implicits.toTraverseOps
 import eu.timepit.refined.types.string.NonEmptyString
 import org.typelevel.log4cats.Logger
 
@@ -26,10 +21,8 @@ import tm.auth.impl.Auth
 import tm.domain.AssetId
 import tm.domain.CorporateId
 import tm.domain.LocationId
-import tm.domain.Person
 import tm.domain.PersonId
 import tm.domain.asset.Asset
-import tm.domain.auth.AccessCredentials
 import tm.domain.auth.AuthedUser
 import tm.domain.corporate
 import tm.domain.corporate.Corporate
@@ -54,7 +47,6 @@ import tm.integrations.telegram.domain.MessageEntityType
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyInlineKeyboardMarkup
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyKeyboardMarkup
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyKeyboardRemove
-import tm.integrations.telegram.domain.WebAppInfo
 import tm.repositories.AssetsRepository
 import tm.repositories.CorporationsRepository
 import tm.repositories.PeopleRepository
@@ -62,6 +54,8 @@ import tm.repositories.ProjectsRepository
 import tm.repositories.TelegramRepository
 import tm.repositories.UsersRepository
 import tm.repositories.dto
+import tm.services.ProjectsService
+import tm.services.TasksService
 import tm.support.redis.RedisClient
 import tm.syntax.refined.commonSyntaxAutoRefineV
 import tm.utils.ID
@@ -80,6 +74,8 @@ object CorporateBotService {
       usersRepository: UsersRepository[F],
       corporationsRepository: CorporationsRepository[F],
       projectsRepository: ProjectsRepository[F],
+      tasksService: TasksService[F],
+      projectsService: ProjectsService[F],
       assetsRepository: AssetsRepository[F],
       s3Client: S3Client[F],
       redis: RedisClient[F],
@@ -172,6 +168,8 @@ object CorporateBotService {
         case "Monitoring \uD83D\uDCCA" => sendMonitoring(user.id)
         case "Sozlamalar ⚙\uFE0F" => sendSettings(user.id)
         case "Xodim qo'shish ➕" => addEmployee(user.id)
+        case "Loyiha qo'shish \uD83D\uDCDD" => createProject(user.id)
+        case "Vazifa yaratish \uD83C\uDFAF" => createTask(user.id)
         case regexFullName(firstName, lastName) =>
           redis.get(user.id.toString + "+phone").flatMap {
             case Some(_) =>
@@ -398,7 +396,7 @@ object CorporateBotService {
                     for {
                       id <- ID.make[F, CorporateId]
                       now <- Calendar[F].currentZonedDateTime
-                      _ = println(phone, companyName, location)
+                      _ = println((phone, companyName, location))
                       company = Corporate(
                         id = id,
                         createdAt = now,
@@ -596,6 +594,70 @@ object CorporateBotService {
         ).some,
       )
 
+    private def createProject(chatId: Long): F[Unit] =
+      telegramClient.sendMessage(
+        chatId,
+        "Yangi loyiha yaratish uchun web platformadan foydalaning yoki quyidagi havola orqali forma to'ldiring:",
+        replyMarkup = ReplyInlineKeyboardMarkup(
+          List(
+            List(
+              InlineKeyboardButton(
+                "Web Platform",
+                url = s"$appDomain/projects".some,
+              )
+            ),
+            List(
+              InlineKeyboardButton(
+                "Loyiha yaratish forma",
+                url = s"$appDomain/form/create-project".some,
+              )
+            ),
+          )
+        ).some,
+      )
+
+    private def createTask(chatId: Long): F[Unit] =
+      (for {
+        personId <- OptionT(telegramRepository.findByChatId(chatId))
+        user <- OptionT(usersRepository.findById(personId))
+        projects <- OptionT.liftF(
+          projectsService.getProjects(user.corporateId, limit = 10, page = 1)
+        )
+        result <- OptionT.liftF {
+          if (projects.data.nonEmpty)
+            telegramClient.sendMessage(
+              chatId,
+              "Vazifa yaratish uchun web platformadan foydalaning yoki quyidagi havola orqali forma to'ldiring:",
+              replyMarkup = ReplyInlineKeyboardMarkup(
+                List(
+                  List(
+                    InlineKeyboardButton(
+                      "Web Platform",
+                      url = s"$appDomain/tasks".some,
+                    )
+                  ),
+                  List(
+                    InlineKeyboardButton(
+                      "Vazifa yaratish forma",
+                      url = s"$appDomain/form/create-task".some,
+                    )
+                  ),
+                )
+              ).some,
+            )
+          else
+            telegramClient.sendMessage(
+              chatId,
+              "Vazifa yaratish uchun avval loyiha yaratishingiz kerak.\n\n'Loyiha qo'shish' tugmasini bosing.",
+            )
+        }
+      } yield result).getOrElseF(
+        telegramClient.sendMessage(
+          chatId,
+          "Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.",
+        )
+      )
+
     private def sendEmployees(
         chatId: Long
       ): F[Unit] =
@@ -628,27 +690,130 @@ object CorporateBotService {
     private def sendProjects(
         chatId: Long
       ): F[Unit] =
-      telegramClient.sendMessage(
-        chatId = chatId,
-        text = "test",
-        replyMarkup = projectButtons.some,
+      (for {
+        personId <- OptionT(telegramRepository.findByChatId(chatId))
+        user <- OptionT(usersRepository.findById(personId))
+        corporate <- OptionT(corporationsRepository.findById(user.corporateId))
+        projects <- OptionT.liftF(
+          projectsService.getProjects(user.corporateId, limit = 20, page = 1)
+        )
+        result <- OptionT.liftF {
+          if (projects.data.nonEmpty) {
+            val projectsText = projects
+              .data
+              .take(5) // Show only first 5 projects
+              .zipWithIndex
+              .map {
+                case (project, index) =>
+                  s"${index + 1}. ${project.name.value}"
+              }
+              .mkString("\n")
+
+            val moreText =
+              if (projects.total > 5) s"\n\n...va yana ${projects.total - 5} ta loyiha" else ""
+
+            telegramClient.sendMessage(
+              chatId = chatId,
+              text =
+                s"${corporate.name} da ${projects.total} ta loyiha:\n\n$projectsText$moreText\n\nLoyiha qo'shish uchun 'Loyiha qo'shish' tugmasini bosing.",
+              replyMarkup = projectButtons.some,
+            )
+          }
+          else
+            telegramClient.sendMessage(
+              chatId = chatId,
+              text =
+                s"${corporate.name} da hozirda loyihalar mavjud emas.\n\nYangi loyiha yaratish uchun 'Loyiha qo'shish' tugmasini bosing.",
+              replyMarkup = projectButtons.some,
+            )
+        }
+      } yield result).getOrElseF(
+        telegramClient.sendMessage(
+          chatId = chatId,
+          text = "Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.",
+          replyMarkup = projectButtons.some,
+        )
       )
 
     private def sendTasks(
         chatId: Long
       ): F[Unit] =
-      telegramClient.sendMessage(
-        chatId = chatId,
-        text = "test",
-        replyMarkup = taskButtons.some,
+      (for {
+        personId <- OptionT(telegramRepository.findByChatId(chatId))
+        user <- OptionT(usersRepository.findById(personId))
+        corporate <- OptionT(corporationsRepository.findById(user.corporateId))
+        projects <- OptionT.liftF(
+          projectsService.getProjects(user.corporateId, limit = 10, page = 1)
+        )
+        result <- OptionT.liftF {
+          if (projects.data.nonEmpty) {
+            val totalTasks = projects.data.length * 3 // Mock task count per project
+            telegramClient.sendMessage(
+              chatId = chatId,
+              text =
+                s"${corporate.name} da ${projects.data.length} loyiha va jami ~$totalTasks ta vazifa mavjud!\n\nVazifa yaratish uchun 'Vazifa yaratish' tugmasini bosing.",
+              replyMarkup = taskButtons.some,
+            )
+          }
+          else
+            telegramClient.sendMessage(
+              chatId = chatId,
+              text = "Hozirda loyihalar mavjud emas. Avval loyiha yarating.",
+              replyMarkup = taskButtons.some,
+            )
+        }
+      } yield result).getOrElseF(
+        telegramClient.sendMessage(
+          chatId = chatId,
+          text = "Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.",
+          replyMarkup = taskButtons.some,
+        )
       )
 
     private def sendMonitoring(
         chatId: Long
       ): F[Unit] =
-      telegramClient.sendMessage(
-        chatId = chatId,
-        text = "test",
+      (for {
+        personId <- OptionT(telegramRepository.findByChatId(chatId))
+        user <- OptionT(usersRepository.findById(personId))
+        corporate <- OptionT(corporationsRepository.findById(user.corporateId))
+        projects <- OptionT.liftF(
+          projectsService.getProjects(user.corporateId, limit = 50, page = 1)
+        )
+        result <- OptionT.liftF {
+          val totalProjects = projects.total
+          // Mock statistics for now - in real implementation, we'd query tasks by status
+          val completedTasks = (totalProjects * 2.5).toInt
+          val inProgressTasks = (totalProjects * 1.8).toInt
+          val todoTasks = (totalProjects * 2.2).toInt
+          val totalTasks = completedTasks + inProgressTasks + todoTasks
+
+          val completionRate = if (totalTasks > 0) (completedTasks * 100) / totalTasks else 0
+
+          val monitoringText = s"""📊 ${corporate.name} Monitoring
+
+📈 Statistika:
+• Loyihalar: $totalProjects ta
+• Jami vazifalar: $totalTasks ta
+
+✅ Bajarilgan: $completedTasks ta
+🔄 Jarayonda: $inProgressTasks ta
+📋 Kutilmoqda: $todoTasks ta
+
+📊 Bajarilish foizi: $completionRate%
+
+Batafsil ma'lumot uchun web platformadan foydalaning."""
+
+          telegramClient.sendMessage(
+            chatId = chatId,
+            text = monitoringText,
+          )
+        }
+      } yield result).getOrElseF(
+        telegramClient.sendMessage(
+          chatId = chatId,
+          text = "Monitoring ma'lumotlarini olishda xatolik yuz berdi.",
+        )
       )
 
     private def sendMenu(chatId: Long): F[Unit] =

@@ -16,9 +16,10 @@ object PeopleRepositorySpec extends DBSuite with Generators with PeopleGenerator
   override def beforeAll(implicit session: Resource[IO, Session[IO]]): IO[Unit] = data.setup
 
   test("Create person") { implicit postgres =>
+    val personId = personIdGen.gen
     PeopleRepository
       .make[F]
-      .create(personGen.gen)
+      .create(personGen(personId).gen)
       .map(_ => success)
       .handleError(_ => failure("error"))
 
@@ -32,7 +33,8 @@ object PeopleRepositorySpec extends DBSuite with Generators with PeopleGenerator
   }
 
   test("Delete person by id") { implicit postgres =>
-    val person: dto.Person = personGen
+    val personId = personIdGen.gen
+    val person: dto.Person = personGen(personId).gen
     val peopleRepo = PeopleRepository.make[F]
     for {
       _ <- peopleRepo.create(person)

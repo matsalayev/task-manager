@@ -70,12 +70,14 @@ private[repositories] object UsersSql extends Sql[PersonId] {
 
   val insert: Command[AccessCredentials[User]] =
     sql"""
-      INSERT INTO users (id, role, phone, password)
-      VALUES ($id, $role, $phone, $passwordHash)
+      INSERT INTO users (id, created_at, role, phone, corporate_id, password)
+      VALUES ($id, $zonedDateTime, $role, $phone, ${CorporationsSql.id}, $passwordHash)
     """
       .command
       .contramap { (u: AccessCredentials[User]) =>
-        u.data.id *: u.data.role *: u.data.phone *: u.password *: EmptyTuple
+        u.data.id *: java.time.ZonedDateTime.now() *: u
+          .data
+          .role *: u.data.phone *: u.data.corporateId *: u.password *: EmptyTuple
       }
 
   val createUser: Command[corporate.User] =

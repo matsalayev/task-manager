@@ -1,7 +1,6 @@
 package tm.repositories
 
 import cats.effect.Resource
-import cats.implicits.toFlatMapOps
 import cats.implicits.toFunctorOps
 import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
