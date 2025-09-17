@@ -1,0 +1,178 @@
+package tm.endpoint.routes
+
+import cats.MonadThrow
+import cats.implicits._
+import eu.timepit.refined.types.string.NonEmptyString
+import org.http4s._
+import org.http4s.circe.CirceEntityCodec._
+import org.http4s.circe.JsonDecoder
+import org.typelevel.log4cats.Logger
+
+import tm.domain.TaskId
+import tm.domain.auth.AuthedUser
+import tm.domain.task.TaskAttachmentId
+import tm.domain.task.TaskCommentId
+import tm.services.TaskContentError
+import tm.services.TaskContentService
+import tm.support.http4s.utils.Routes
+import tm.support.syntax.http4s.http4SyntaxReqOps
+
+final case class TaskContentRoutes[F[_]: JsonDecoder: MonadThrow](
+    taskContentService: TaskContentService[F]
+  )(implicit
+    logger: Logger[F]
+  ) extends Routes[F, AuthedUser] {
+  override val path = "/tasks"
+
+  override val public: HttpRoutes[F] = HttpRoutes.empty
+
+  override val `private`: AuthedRoutes[AuthedUser, F] = AuthedRoutes.of {
+
+    // === COMMENTS ===
+
+    // Get comments for task
+    case GET -> Root / UUIDVar(taskId) / "comments" as user =>
+      val targetTaskId = TaskId(taskId)
+      taskContentService.getComments(targetTaskId, user.id).flatMap {
+        case Right(comments) => Ok(comments)
+        case Left(TaskContentError.TaskNotFound) => NotFound("Task not found")
+        case Left(TaskContentError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // Add comment to task
+    case ar @ POST -> Root / UUIDVar(taskId) / "comments" as user =>
+      val targetTaskId = TaskId(taskId)
+      ar.req.decodeR[CommentCreateRequest] { request =>
+        taskContentService
+          .addComment(
+            targetTaskId,
+            request.content,
+            user.id,
+            request.parentCommentId.map(TaskCommentId(_)),
+          )
+          .flatMap {
+            case Right(comment) => Created(comment)
+            case Left(TaskContentError.TaskNotFound) => NotFound("Task not found")
+            case Left(TaskContentError.AccessDenied) => Forbidden("Access denied")
+            case Left(TaskContentError.ValidationError(msg)) => BadRequest(msg)
+            case Left(error) => BadRequest(s"Error: $error")
+          }
+      }
+
+    // Update comment
+    case ar @ PUT -> Root / "comments" / UUIDVar(commentId) as user =>
+      val targetCommentId = TaskCommentId(commentId)
+      ar.req.decodeR[CommentUpdateRequest] { request =>
+        taskContentService.updateComment(targetCommentId, request.content, user.id).flatMap {
+          case Right(comment) => Ok(comment)
+          case Left(TaskContentError.CommentNotFound) => NotFound("Comment not found")
+          case Left(TaskContentError.AccessDenied) => Forbidden("Access denied")
+          case Left(error) => BadRequest(s"Error: $error")
+        }
+      }
+
+    // Delete comment
+    case DELETE -> Root / "comments" / UUIDVar(commentId) as user =>
+      val targetCommentId = TaskCommentId(commentId)
+      taskContentService.deleteComment(targetCommentId, user.id).flatMap {
+        case Right(_) => NoContent()
+        case Left(TaskContentError.CommentNotFound) => NotFound("Comment not found")
+        case Left(TaskContentError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // === ATTACHMENTS ===
+
+    // Get attachments for task
+    case GET -> Root / UUIDVar(taskId) / "attachments" as user =>
+      val targetTaskId = TaskId(taskId)
+      taskContentService.getAttachments(targetTaskId, user.id).flatMap {
+        case Right(attachments) => Ok(attachments)
+        case Left(TaskContentError.TaskNotFound) => NotFound("Task not found")
+        case Left(TaskContentError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // Upload attachment to task
+    case ar @ POST -> Root / UUIDVar(taskId) / "attachments" as user =>
+      val targetTaskId = TaskId(taskId)
+      ar.req.decodeR[AttachmentCreateRequest] { request =>
+        taskContentService
+          .addAttachment(
+            targetTaskId,
+            request.fileName,
+            request.filePath,
+            request.fileSize,
+            request.mimeType,
+            user.id,
+          )
+          .flatMap {
+            case Right(attachment) => Created(attachment)
+            case Left(TaskContentError.TaskNotFound) => NotFound("Task not found")
+            case Left(TaskContentError.InvalidFileSize) => BadRequest("File too large (max 50MB)")
+            case Left(TaskContentError.InvalidFileType) => BadRequest("Invalid file type")
+            case Left(TaskContentError.AccessDenied) => Forbidden("Access denied")
+            case Left(error) => BadRequest(s"Error: $error")
+          }
+      }
+
+    // Get specific attachment
+    case GET -> Root / "attachments" / UUIDVar(attachmentId) as user =>
+      val targetAttachmentId = TaskAttachmentId(attachmentId)
+      taskContentService.getAttachment(targetAttachmentId, user.id).flatMap {
+        case Right(attachment) => Ok(attachment)
+        case Left(TaskContentError.AttachmentNotFound) => NotFound("Attachment not found")
+        case Left(TaskContentError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // Delete attachment
+    case DELETE -> Root / "attachments" / UUIDVar(attachmentId) as user =>
+      val targetAttachmentId = TaskAttachmentId(attachmentId)
+      taskContentService.deleteAttachment(targetAttachmentId, user.id).flatMap {
+        case Right(_) => NoContent()
+        case Left(TaskContentError.AttachmentNotFound) => NotFound("Attachment not found")
+        case Left(TaskContentError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+  }
+}
+
+// Request DTOs
+case class CommentCreateRequest(
+    content: NonEmptyString,
+    parentCommentId: Option[java.util.UUID],
+  )
+
+case class CommentUpdateRequest(
+    content: NonEmptyString
+  )
+
+case class AttachmentCreateRequest(
+    fileName: NonEmptyString,
+    filePath: NonEmptyString,
+    fileSize: Long,
+    mimeType: Option[NonEmptyString],
+  )
+
+object CommentCreateRequest {
+  import io.circe.Codec
+  import io.circe.generic.semiauto._
+  import io.circe.refined._
+  implicit val codec: Codec[CommentCreateRequest] = deriveCodec
+}
+
+object CommentUpdateRequest {
+  import io.circe.Codec
+  import io.circe.generic.semiauto._
+  import io.circe.refined._
+  implicit val codec: Codec[CommentUpdateRequest] = deriveCodec
+}
+
+object AttachmentCreateRequest {
+  import io.circe.Codec
+  import io.circe.generic.semiauto._
+  import io.circe.refined._
+  implicit val codec: Codec[AttachmentCreateRequest] = deriveCodec
+}

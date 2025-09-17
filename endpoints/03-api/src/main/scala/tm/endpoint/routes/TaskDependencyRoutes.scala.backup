@@ -1,0 +1,182 @@
+package tm.endpoint.routes
+
+import cats.MonadThrow
+import cats.implicits._
+import org.http4s._
+import org.http4s.circe.CirceEntityCodec._
+import org.http4s.circe.JsonDecoder
+import org.typelevel.log4cats.Logger
+
+import tm.domain.ProjectId
+import tm.domain.TaskId
+import tm.domain.auth.AuthedUser
+import tm.domain.task._
+import tm.services.DependencyError
+import tm.services.TaskDependencyService
+import tm.support.http4s.utils.Routes
+import tm.support.syntax.http4s.http4SyntaxReqOps
+
+final case class TaskDependencyRoutes[F[_]: JsonDecoder: MonadThrow](
+    dependencyService: TaskDependencyService[F]
+  )(implicit
+    logger: Logger[F]
+  ) extends Routes[F, AuthedUser] {
+  override val path = "/tasks"
+
+  override val public: HttpRoutes[F] = HttpRoutes.empty
+
+  override val `private`: AuthedRoutes[AuthedUser, F] = AuthedRoutes.of {
+
+    // === DEPENDENCIES ===
+
+    // Add dependency to task
+    case ar @ POST -> Root / UUIDVar(taskId) / "dependencies" as user =>
+      val targetTaskId = TaskId(taskId)
+      ar.req.decodeR[CreateDependencyRequest] { request =>
+        dependencyService.addDependency(targetTaskId, request, user.id).flatMap {
+          case Right(dependency) => Created(dependency)
+          case Left(DependencyError.TaskNotFound) => NotFound("Task not found")
+          case Left(DependencyError.CircularDependency) =>
+            BadRequest("This would create a circular dependency")
+          case Left(DependencyError.SelfDependency) => BadRequest("A task cannot depend on itself")
+          case Left(DependencyError.DependencyAlreadyExists) =>
+            Conflict("Dependency already exists")
+          case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+          case Left(DependencyError.ValidationError(msg)) => BadRequest(msg)
+          case Left(error) => BadRequest(s"Error: $error")
+        }
+      }
+
+    // Get dependencies for task
+    case GET -> Root / UUIDVar(taskId) / "dependencies" as user =>
+      val targetTaskId = TaskId(taskId)
+      dependencyService.getTaskDependencies(targetTaskId, user.id).flatMap {
+        case Right(dependencies) => Ok(dependencies)
+        case Left(DependencyError.TaskNotFound) => NotFound("Task not found")
+        case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // Get dependents for task
+    case GET -> Root / UUIDVar(taskId) / "dependents" as user =>
+      val targetTaskId = TaskId(taskId)
+      dependencyService.getTaskDependents(targetTaskId, user.id).flatMap {
+        case Right(dependents) => Ok(dependents)
+        case Left(DependencyError.TaskNotFound) => NotFound("Task not found")
+        case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // Remove dependency
+    case DELETE -> Root / "dependencies" / UUIDVar(dependencyId) as user =>
+      val targetDependencyId = TaskDependencyId(dependencyId)
+      dependencyService.removeDependency(targetDependencyId, user.id).flatMap {
+        case Right(_) => NoContent()
+        case Left(DependencyError.DependencyNotFound) => NotFound("Dependency not found")
+        case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // === SUBTASKS ===
+
+    // Add subtask to task
+    case ar @ POST -> Root / UUIDVar(parentTaskId) / "subtasks" as user =>
+      val targetParentTaskId = TaskId(parentTaskId)
+      ar.req.decodeR[CreateSubtaskRequest] { request =>
+        dependencyService.addSubtask(targetParentTaskId, request, user.id).flatMap {
+          case Right(subtask) => Created(subtask)
+          case Left(DependencyError.TaskNotFound) => NotFound("Task not found")
+          case Left(DependencyError.SubtaskAlreadyExists) =>
+            Conflict("Subtask relationship already exists")
+          case Left(DependencyError.InvalidHierarchy) =>
+            BadRequest("Invalid hierarchy: task already has a parent")
+          case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+          case Left(DependencyError.ValidationError(msg)) => BadRequest(msg)
+          case Left(error) => BadRequest(s"Error: $error")
+        }
+      }
+
+    // Get subtasks for task
+    case GET -> Root / UUIDVar(parentTaskId) / "subtasks" as user =>
+      val targetParentTaskId = TaskId(parentTaskId)
+      dependencyService.getSubtasks(targetParentTaskId, user.id).flatMap {
+        case Right(subtasks) => Ok(subtasks)
+        case Left(DependencyError.TaskNotFound) => NotFound("Task not found")
+        case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // Reorder subtasks
+    case ar @ PUT -> Root / UUIDVar(parentTaskId) / "subtasks" / "reorder" as user =>
+      val targetParentTaskId = TaskId(parentTaskId)
+      ar.req.decodeR[ReorderSubtasksRequest] { request =>
+        dependencyService.reorderSubtasks(targetParentTaskId, request, user.id).flatMap {
+          case Right(_) => Ok("Subtasks reordered successfully")
+          case Left(DependencyError.TaskNotFound) => NotFound("Task not found")
+          case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+          case Left(DependencyError.ValidationError(msg)) => BadRequest(msg)
+          case Left(error) => BadRequest(s"Error: $error")
+        }
+      }
+
+    // Remove subtask
+    case DELETE -> Root / "subtasks" / UUIDVar(subtaskId) as user =>
+      val targetSubtaskId = TaskSubtaskId(subtaskId)
+      dependencyService.removeSubtask(targetSubtaskId, user.id).flatMap {
+        case Right(_) => NoContent()
+        case Left(DependencyError.SubtaskNotFound) => NotFound("Subtask not found")
+        case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // === ADVANCED OPERATIONS ===
+
+    // Get task with full dependency information
+    case GET -> Root / UUIDVar(taskId) / "full" as user =>
+      val targetTaskId = TaskId(taskId)
+      dependencyService.getTaskWithDependencies(targetTaskId, user.id).flatMap {
+        case Right(taskWithDeps) => Ok(taskWithDeps)
+        case Left(DependencyError.TaskNotFound) => NotFound("Task not found")
+        case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // Get task hierarchy
+    case GET -> Root / UUIDVar(taskId) / "hierarchy" as user =>
+      val targetTaskId = TaskId(taskId)
+      dependencyService.getTaskHierarchy(targetTaskId, user.id).flatMap {
+        case Right(hierarchy) => Ok(hierarchy)
+        case Left(DependencyError.TaskNotFound) => NotFound("Task not found")
+        case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // Analyze dependencies for project
+    case GET -> Root / "analysis" / "dependencies" :? ProjectIdQueryParam(projectId) as user =>
+      dependencyService.analyzeDependencies(projectId, user.id).flatMap {
+        case Right(analysis) => Ok(analysis)
+        case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // Get ready tasks (no blocking dependencies)
+    case GET -> Root / "ready" :? ProjectIdQueryParam(projectId) as user =>
+      dependencyService.getReadyTasks(projectId, user.id).flatMap {
+        case Right(tasks) => Ok(tasks)
+        case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+
+    // Get blocked tasks (have uncompleted dependencies)
+    case GET -> Root / "blocked" :? ProjectIdQueryParam(projectId) as user =>
+      dependencyService.getBlockedTasks(projectId, user.id).flatMap {
+        case Right(tasks) => Ok(tasks)
+        case Left(DependencyError.AccessDenied) => Forbidden("Access denied")
+        case Left(error) => BadRequest(s"Error: $error")
+      }
+  }
+
+  // Query parameter extractors
+  private object ProjectIdQueryParam
+      extends OptionalQueryParamDecoderMatcher[ProjectId]("projectId")
+}

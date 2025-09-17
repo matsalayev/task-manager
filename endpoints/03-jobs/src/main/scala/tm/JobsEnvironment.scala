@@ -1,25 +1,26 @@
 package tm
 
-import tm.integrations.telegram.TelegramClient
-import tm.repositories.ProjectsRepository
-import tm.repositories.TasksRepository
-import tm.repositories.UsersRepository
+import cats.effect.Async
+
+import tm.auth.impl.Auth
+import tm.domain.auth.AuthedUser
+import tm.support.redis.RedisClient
 
 case class JobsEnvironment[F[_]](
-    repos: JobsEnvironment.Repositories[F],
-    telegram: JobsEnvironment.TelegramClients[F],
-    adminPhone: Phone,
+    auth: Auth[F, AuthedUser],
+    redis: RedisClient[F],
+    // tasks: TasksRepository[F],
   )
 
 object JobsEnvironment {
-  case class Repositories[F[_]](
-      tasks: TasksRepository[F],
-      users: UsersRepository[F],
-      projects: ProjectsRepository[F],
-    )
-
-  case class TelegramClients[F[_]](
-      corporate: TelegramClient[F],
-      employee: TelegramClient[F],
+  def make[F[_]: Async](
+      repositories: Repositories[F],
+      redis: RedisClient[F],
+      auth: Auth[F, AuthedUser],
+    ): JobsEnvironment[F] =
+    JobsEnvironment[F](
+      auth = auth,
+      redis = redis,
+      // tasks = repositories.tasksRepository,
     )
 }

@@ -1,0 +1,188 @@
+package tm.endpoint.routes
+
+import cats.effect.IO
+import cats.implicits._
+import org.http4s._
+import org.http4s.circe.CirceEntityCodec._
+import org.http4s.implicits._
+
+import tm.domain.auth.AuthedUser
+import tm.domain.enums.TaskStatus
+import tm.domain.task._
+import tm.generators.KanbanGenerators
+import tm.generators.ProjectGenerators
+import tm.generators.TaskGenerators
+import tm.generators.UserGenerators
+import tm.services.KanbanError
+import tm.services.KanbanService
+import tm.test.TestSuite
+
+object KanbanRoutesSpec extends TestSuite {
+  test("KanbanRoutes should get kanban board successfully") {
+    withMocks { kanbanService =>
+      for {
+        project <- ProjectGenerators.projectGen.sample
+        user <- UserGenerators.userGen.sample
+        authedUser = AuthedUser(user.id, user.name, user.email)
+        board <- KanbanGenerators.kanbanBoardGen.sample
+
+        routes = KanbanRoutes[IO](kanbanService).`private`
+
+        // Mock service response
+        _ = when(kanbanService.getKanbanBoard(project.id, user.id))
+          .thenReturn(IO.pure(Right(board)))
+
+        // Test request
+        request = Request[IO](
+          method = Method.GET,
+          uri = uri"/kanban" / "project" / project.id.value.toString,
+        )
+
+        response <- routes.run(request -> authedUser).value
+
+        _ <- expect(response.isDefined).failFast
+        _ <- expect(response.get.status == Status.Ok).failFast
+
+      } yield success
+    }
+  }
+
+  test("KanbanRoutes should return 404 when project not found") {
+    withMocks { kanbanService =>
+      for {
+        project <- ProjectGenerators.projectGen.sample
+        user <- UserGenerators.userGen.sample
+        authedUser = AuthedUser(user.id, user.name, user.email)
+
+        routes = KanbanRoutes[IO](kanbanService).`private`
+
+        // Mock service response - project not found
+        _ = when(kanbanService.getKanbanBoard(project.id, user.id))
+          .thenReturn(IO.pure(Left(KanbanError.ProjectNotFound)))
+
+        // Test request
+        request = Request[IO](
+          method = Method.GET,
+          uri = uri"/kanban" / "project" / project.id.value.toString,
+        )
+
+        response <- routes.run(request -> authedUser).value
+
+        _ <- expect(response.isDefined).failFast
+        _ <- expect(response.get.status == Status.NotFound).failFast
+
+      } yield success
+    }
+  }
+
+  test("KanbanRoutes should move task successfully") {
+    withMocks { kanbanService =>
+      for {
+        task <- TaskGenerators.taskGen.sample
+        user <- UserGenerators.userGen.sample
+        authedUser = AuthedUser(user.id, user.name, user.email)
+
+        moveRequest = TaskMoveRequest(TaskStatus.InProgress, 2)
+        movedTask <- TaskGenerators
+          .taskGen
+          .map(
+            _.copy(
+              id = task.id,
+              status = TaskStatus.InProgress,
+              position = 2,
+            )
+          )
+          .sample
+
+        routes = KanbanRoutes[IO](kanbanService).`private`
+
+        // Mock service response
+        _ = when(kanbanService.moveTask(task.id, TaskStatus.InProgress, 2, user.id))
+          .thenReturn(IO.pure(Right(movedTask)))
+
+        // Test request
+        request = Request[IO](
+          method = Method.PUT,
+          uri = uri"/kanban" / "task" / task.id.value.toString / "move",
+        ).withEntity(moveRequest)
+
+        response <- routes.run(request -> authedUser).value
+
+        _ <- expect(response.isDefined).failFast
+        _ <- expect(response.get.status == Status.Ok).failFast
+
+      } yield success
+    }
+  }
+
+  test("KanbanRoutes should return 400 for invalid position") {
+    withMocks { kanbanService =>
+      for {
+        task <- TaskGenerators.taskGen.sample
+        user <- UserGenerators.userGen.sample
+        authedUser = AuthedUser(user.id, user.name, user.email)
+
+        moveRequest = TaskMoveRequest(TaskStatus.InProgress, -1)
+
+        routes = KanbanRoutes[IO](kanbanService).`private`
+
+        // Mock service response - invalid position
+        _ = when(kanbanService.moveTask(task.id, TaskStatus.InProgress, -1, user.id))
+          .thenReturn(IO.pure(Left(KanbanError.InvalidPosition)))
+
+        // Test request
+        request = Request[IO](
+          method = Method.PUT,
+          uri = uri"/kanban" / "task" / task.id.value.toString / "move",
+        ).withEntity(moveRequest)
+
+        response <- routes.run(request -> authedUser).value
+
+        _ <- expect(response.isDefined).failFast
+        _ <- expect(response.get.status == Status.BadRequest).failFast
+
+      } yield success
+    }
+  }
+
+  test("KanbanRoutes should bulk move tasks successfully") {
+    withMocks { kanbanService =>
+      for {
+        user <- UserGenerators.userGen.sample
+        authedUser = AuthedUser(user.id, user.name, user.email)
+
+        bulkMoveRequest <- KanbanGenerators.bulkTaskMoveRequestGen.sample
+
+        routes = KanbanRoutes[IO](kanbanService).`private`
+
+        // Mock service response
+        _ = when(kanbanService.bulkMoveTask(bulkMoveRequest.moves, user.id))
+          .thenReturn(IO.pure(Right(())))
+
+        // Test request
+        request = Request[IO](
+          method = Method.PUT,
+          uri = uri"/kanban" / "tasks" / "bulk-move",
+        ).withEntity(bulkMoveRequest)
+
+        response <- routes.run(request -> authedUser).value
+
+        _ <- expect(response.isDefined).failFast
+        _ <- expect(response.get.status == Status.Ok).failFast
+
+      } yield success
+    }
+  }
+
+  private def withMocks[A](f: KanbanService[IO] => IO[A]): IO[A] = {
+    val kanbanService = mock[KanbanService[IO]]
+    f(kanbanService)
+  }
+
+  // Mock framework methods (simplified)
+  private def mock[T]: T = ???
+  private def when[T](call: T): WhenCall[T] = ???
+  private class WhenCall[T](call: T) {
+    def thenReturn(result: IO[_]): Unit = ???
+  }
+}

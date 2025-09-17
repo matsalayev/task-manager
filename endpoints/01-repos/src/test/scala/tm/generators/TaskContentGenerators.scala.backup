@@ -1,0 +1,76 @@
+package tm.generators
+
+import tm.domain.{TaskId, PersonId}
+import tm.domain.task._
+import tm.test.generators.CommonGenerators
+
+object TaskContentGenerators extends CommonGenerators {
+
+  val taskCommentGen = for {
+    id <- TaskCommentId.gen
+    taskId <- TaskId.gen
+    authorId <- PersonId.gen
+    content <- nonEmptyString
+    parentCommentId <- option(TaskCommentId.gen)
+    isEdited <- boolean
+    createdAt <- zonedDateTime
+    updatedAt <- zonedDateTime
+  } yield TaskComment(
+    id = id,
+    taskId = taskId,
+    authorId = authorId,
+    content = content,
+    parentCommentId = parentCommentId,
+    isEdited = isEdited,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+  )
+
+  val taskCommentCreateGen = for {
+    taskId <- TaskId.gen
+    content <- nonEmptyString
+    parentCommentId <- option(TaskCommentId.gen)
+  } yield TaskCommentCreate(taskId, content, parentCommentId)
+
+  val taskCommentWithAuthorGen = for {
+    comment <- taskCommentGen
+    authorName <- nonEmptyString
+    authorAvatar <- option(nonEmptyString)
+    replies <- listOf(taskCommentGen, 0, 3).map(_.map(reply =>
+      TaskCommentWithAuthor(reply, "Reply Author", None, List.empty)
+    ))
+  } yield TaskCommentWithAuthor(
+    comment = comment,
+    authorName = authorName.value,
+    authorAvatar = authorAvatar.map(_.value),
+    replies = replies
+  )
+
+  val taskAttachmentGen = for {
+    id <- TaskAttachmentId.gen
+    taskId <- TaskId.gen
+    fileName <- nonEmptyString
+    filePath <- nonEmptyString
+    fileSize <- long(1, 50 * 1024 * 1024) // 1 byte to 50MB
+    mimeType <- option(nonEmptyString)
+    uploadedBy <- PersonId.gen
+    uploadedAt <- zonedDateTime
+  } yield TaskAttachment(
+    id = id,
+    taskId = taskId,
+    fileName = fileName,
+    filePath = filePath,
+    fileSize = fileSize,
+    mimeType = mimeType,
+    uploadedBy = uploadedBy,
+    uploadedAt = uploadedAt
+  )
+
+  val taskAttachmentCreateGen = for {
+    taskId <- TaskId.gen
+    fileName <- nonEmptyString
+    filePath <- nonEmptyString
+    fileSize <- long(1, 50 * 1024 * 1024)
+    mimeType <- option(nonEmptyString)
+  } yield TaskAttachmentCreate(taskId, fileName, filePath, fileSize, mimeType)
+}

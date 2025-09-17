@@ -1,0 +1,82 @@
+package tm.generators
+
+import tm.domain.{TaskId, ProjectId, PersonId}
+import tm.domain.enums.TaskStatus
+import tm.domain.task._
+import tm.test.generators.CommonGenerators
+
+object KanbanGenerators extends CommonGenerators {
+
+  val taskPriorityGen = sample(
+    TaskPriority.Low,
+    TaskPriority.Medium,
+    TaskPriority.High,
+    TaskPriority.Critical
+  )
+
+  val taskStatusGen = sample(
+    TaskStatus.Todo,
+    TaskStatus.InProgress,
+    TaskStatus.Done,
+    TaskStatus.Completed,
+    TaskStatus.Cancelled
+  )
+
+  val kanbanTaskGen = for {
+    id <- TaskId.gen
+    name <- nonEmptyString
+    description <- option(nonEmptyString)
+    assignees <- listOf(PersonId.gen, 1, 3)
+    priority <- option(taskPriorityGen)
+    estimatedHours <- option(posInt(1, 40))
+    tags <- listOf(nonEmptyString, 0, 5)
+    position <- posInt(0, 100)
+    dueDate <- option(zonedDateTime)
+    status <- taskStatusGen
+  } yield KanbanTask(
+    id = id,
+    name = name.value,
+    description = description.map(_.value),
+    assignees = assignees,
+    priority = priority,
+    estimatedHours = estimatedHours,
+    tags = tags.map(_.value),
+    position = position,
+    dueDate = dueDate,
+    status = status
+  )
+
+  val kanbanColumnGen = for {
+    status <- taskStatusGen
+    name <- nonEmptyString
+    tasks <- listOf(kanbanTaskGen, 0, 10)
+    wipLimit <- option(posInt(1, 20))
+    position <- posInt(0, 10)
+  } yield KanbanColumn(
+    status = status,
+    name = name.value,
+    tasks = tasks,
+    wipLimit = wipLimit,
+    position = position
+  )
+
+  val kanbanBoardGen = for {
+    projectId <- ProjectId.gen
+    columns <- listOf(kanbanColumnGen, 3, 7)
+  } yield KanbanBoard(projectId, columns)
+
+  val taskMoveRequestGen = for {
+    newStatus <- taskStatusGen
+    newPosition <- posInt(0, 100)
+  } yield TaskMoveRequest(newStatus, newPosition)
+
+  val taskMoveGen = for {
+    taskId <- TaskId.gen
+    newStatus <- taskStatusGen
+    newPosition <- posInt(0, 100)
+  } yield TaskMove(taskId, newStatus, newPosition)
+
+  val bulkTaskMoveRequestGen = for {
+    moves <- listOf(taskMoveGen, 1, 10)
+  } yield BulkTaskMoveRequest(moves)
+}

@@ -48,17 +48,10 @@ case class Environment[F[_]: Async: MonadThrow: Logger](
       telegramEmployeeBot = config.tmEmployeeBot,
     )
   lazy val toJobs: JobsEnvironment[F] =
-    JobsEnvironment(
-      repos = JobsEnvironment.Repositories(
-        tasks = repositories.tasksRepository,
-        users = repositories.users,
-        projects = repositories.projectsRepository,
-      ),
-      telegram = JobsEnvironment.TelegramClients(
-        corporate = telegramClientCorporate,
-        employee = telegramClientEmployee,
-      ),
-      adminPhone = config.adminPhone,
+    JobsEnvironment.make[F](
+      repositories = repositories,
+      redis = redis,
+      auth = services.auth,
     )
 }
 
