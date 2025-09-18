@@ -175,6 +175,12 @@ case class ManualTimeEntryRequest(
     description: String,
   )
 
+case class TimeEntriesFilterRequest(
+    taskId: Option[TaskId] = None,
+    startDate: Option[LocalDate] = None,
+    endDate: Option[LocalDate] = None,
+  )
+
 // Codecs
 object TimeEntryId {
   implicit val codec: Codec[TimeEntryId] = deriveCodec
@@ -240,4 +246,8 @@ object StartBreakRequest {
 
 object ManualTimeEntryRequest {
   implicit val codec: Codec[ManualTimeEntryRequest] = deriveCodec
+}
+
+object TimeEntriesFilterRequest {
+  implicit val codec: Codec[TimeEntriesFilterRequest] = deriveCodec
 }

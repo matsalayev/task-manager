@@ -24,6 +24,7 @@ case class Services[F[_]](
     employeeBotService: EmployeeBotService[F],
     employeeService: EmployeeService[F],
     projectsService: ProjectsService[F],
+    timeTrackingService: TimeTrackingService[F],
   )
 
 object Services {
@@ -76,6 +77,7 @@ object Services {
         appDomain,
       ),
       employeeService = EmployeeService.make[F](repositories.people, repositories.users),
+      timeTrackingService = TimeTrackingService.make[F](repositories.timeTrackingRepository),
     )
   }
 }

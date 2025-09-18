@@ -32,6 +32,7 @@ object HttpModule {
         new UserRoutes[F](env.services.users),
         new AssetsRoutes[F](env.services.assets),
         new ProjectsRoutes[F](env.services.projectsService),
+        new TimeTrackingRoutes[F](env.services.timeTrackingService),
       )
       .map { r =>
         Router(
