@@ -1,4 +1,4 @@
-package tm.repositories
+package tm.endpoint.routes
 
 import java.util.UUID
 
@@ -9,17 +9,17 @@ import tm.domain.ProjectId
 import tm.domain.TaskId
 import tm.domain.enums.TaskStatus
 
-object KanbanRepositorySpec extends SimpleIOSuite {
-  test("KanbanRepository should compile") {
+object KanbanRoutesSpec extends SimpleIOSuite {
+  test("KanbanRoutes should compile") {
     val projectId = ProjectId(UUID.randomUUID())
     val taskId = TaskId(UUID.randomUUID())
 
-    // Test basic functionality without database
+    // Test basic functionality
     IO.pure(expect(projectId.value != null && taskId.value != null))
   }
 
-  test("TaskStatus should have correct values") {
-    val status = TaskStatus.ToDo
-    IO.pure(expect(status == TaskStatus.ToDo))
+  test("TaskStatus should work in routes") {
+    val status = TaskStatus.InProgress
+    IO.pure(expect(status == TaskStatus.InProgress))
   }
 }

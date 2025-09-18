@@ -13,6 +13,11 @@ case class Repositories[F[_]](
     telegramRepository: TelegramRepository[F],
     corporationsRepository: CorporationsRepository[F],
     projectsRepository: ProjectsRepository[F],
+    tasksRepository: TasksRepository[F],
+    kanbanRepository: KanbanRepository[F],
+    taskContentRepository: TaskContentRepository[F],
+    taskDependencyRepository: TaskDependencyRepository[F],
+    timeTrackingRepository: TimeTrackingRepository[F],
   )
 
 object Repositories {
@@ -27,5 +32,10 @@ object Repositories {
       telegramRepository = TelegramRepository.make[F],
       corporationsRepository = CorporationsRepository.make[F],
       projectsRepository = ProjectsRepository.make[F],
+      tasksRepository = TasksRepository.make[F],
+      kanbanRepository = KanbanRepository.make[F],
+      taskContentRepository = TaskContentRepository.make[F],
+      taskDependencyRepository = TaskDependencyRepository.make[F],
+      timeTrackingRepository = TimeTrackingRepository.make[F],
     )
 }
