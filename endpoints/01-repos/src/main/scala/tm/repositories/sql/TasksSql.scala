@@ -2,20 +2,37 @@ package tm.repositories.sql
 
 import eu.timepit.refined.types.string.NonEmptyString
 import skunk._
+import skunk.codec.all._
 import skunk.implicits._
 
 import tm.domain.ProjectId
 import tm.domain.TaskId
 import tm.domain.task.Task
+import tm.domain.task.TaskPriority
 import tm.repositories.dto
 import tm.support.skunk.Sql
 import tm.support.skunk.codecs.nes
 import tm.support.skunk.codecs.zonedDateTime
 
 private[repositories] object TasksSql extends Sql[TaskId] {
+  // TaskPriority codec
+  private val taskPriority: Codec[TaskPriority] = varchar.imap[TaskPriority] {
+    case "Low" => TaskPriority.Low
+    case "Medium" => TaskPriority.Medium
+    case "High" => TaskPriority.High
+    case "Critical" => TaskPriority.Critical
+    case other => throw new RuntimeException(s"Unknown priority: $other")
+  } {
+    case TaskPriority.Low => "Low"
+    case TaskPriority.Medium => "Medium"
+    case TaskPriority.High => "High"
+    case TaskPriority.Critical => "Critical"
+  }
+
   private val codec: Codec[Task] =
     (id *: zonedDateTime *: PeopleSql.id *: ProjectsSql.id *: nes *: nes.opt *:
-      TagsSql.id.opt *: AssetsSql.id.opt *: taskStatus *: zonedDateTime.opt *: nes.opt)
+      TagsSql.id.opt *: AssetsSql.id.opt *: taskStatus *: zonedDateTime.opt *: nes.opt *:
+      taskPriority.opt *: int4 *: int4.opt *: zonedDateTime.opt)
       .to[Task]
 
   private val dtoCodec: Codec[dto.Task] =
@@ -24,7 +41,10 @@ private[repositories] object TasksSql extends Sql[TaskId] {
       .to[dto.Task]
 
   val insert: Command[Task] =
-    sql"""INSERT INTO tasks VALUES ($codec)""".command
+    sql"""INSERT INTO tasks (
+      id, created_at, created_by, project_id, name, description, tag_id, asset_id,
+      status, deadline, link, priority, position, estimated_hours, finished_at
+    ) VALUES ($codec)""".command
 
   val getAll: Query[ProjectId, dto.Task] =
     sql"""
@@ -67,11 +87,16 @@ private[repositories] object TasksSql extends Sql[TaskId] {
         tag_id = ${TagsSql.id.opt},
         asset_id = ${AssetsSql.id.opt},
         status = $taskStatus,
-        deadline = ${zonedDateTime.opt}
+        deadline = ${zonedDateTime.opt},
+        priority = ${taskPriority.opt},
+        position = $int4,
+        estimated_hours = ${int4.opt},
+        finished_at = ${zonedDateTime.opt}
       WHERE id = $id"""
       .command
       .contramap { (t: Task) =>
-        t.name *: t.description *: t.tagId *: t.photo *: t.status *: t.deadline *: t.id *: EmptyTuple
+        t.name *: t.description *: t.tagId *: t.photo *: t.status *: t.deadline *:
+          t.priority *: t.position *: t.estimatedHours *: t.finishedAt *: t.id *: EmptyTuple
       }
 
   val delete: Command[TaskId] =

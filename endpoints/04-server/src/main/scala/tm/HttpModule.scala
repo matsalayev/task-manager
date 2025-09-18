@@ -22,11 +22,11 @@ object HttpModule {
     ): NonEmptyList[HttpRoutes[F]] =
     NonEmptyList
       .of[Routes[F, AuthedUser]](
-        new TelegramBotsRoutes[F](
-          env.services.corporateBotService,
-          env.services.employeeBotService,
-          env.telegramCorporateBot.webhookSecret,
-        ),
+        // new TelegramBotsRoutes[F](
+        //   env.services.corporateBotService,
+        //   env.services.employeeBotService,
+        //   env.telegramCorporateBot.webhookSecret,
+        // ),
         new FormsRoutes[F](env.services.employeeService),
         new AuthRoutes[F](env.services.auth),
         new UserRoutes[F](env.services.users),
