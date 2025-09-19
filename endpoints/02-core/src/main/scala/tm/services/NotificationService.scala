@@ -3,7 +3,6 @@ package tm.services
 import java.time.ZonedDateTime
 
 import cats.MonadThrow
-import cats.data.OptionT
 import cats.implicits._
 
 import tm.domain.PersonId
@@ -128,7 +127,7 @@ object NotificationService {
 
         // Send through each allowed delivery method
         _ <- finalMethods.traverse_ { method =>
-          deliveryProvider.sendNotification(notification, method).handleError { error =>
+          deliveryProvider.sendNotification(notification, method).handleErrorWith { error =>
             // Log delivery failure but don't fail the entire operation
             createDeliveryLog(
               notification.id,
@@ -294,7 +293,7 @@ object NotificationService {
         _ <- failedDeliveries.traverse_ { log =>
           for {
             notificationOpt <- notificationsRepo.findNotificationById(
-              NotificationId(log.notificationId)
+              log.notificationId
             )
             _ <- notificationOpt.traverse_ { notification =>
               deliveryProvider.sendNotification(notification, log.deliveryMethod).attempt.flatMap {
@@ -461,6 +460,6 @@ object MockNotificationDeliveryProvider {
           notificationId: NotificationId,
           deliveryMethod: DeliveryMethod,
         ): F[Option[DeliveryStatus]] =
-        Some(DeliveryStatus.Delivered).pure[F] // Mock implementation
+        (Some(DeliveryStatus.Delivered): Option[DeliveryStatus]).pure[F] // Mock implementation
     }
 }

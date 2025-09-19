@@ -20,4 +20,11 @@ object QueryParam {
   object OptionalEndDate extends OptionalQueryParamDecoderMatcher[LocalDate]("endDate")
   object OptionalPage extends OptionalQueryParamDecoderMatcher[Int]("page")
   object OptionalLimit extends OptionalQueryParamDecoderMatcher[Int]("limit")
+  object OptionalOffset extends OptionalQueryParamDecoderMatcher[Int]("offset")
+  object OptionalDays extends OptionalQueryParamDecoderMatcher[Int]("days")
+  object OptionalPeriod extends OptionalQueryParamDecoderMatcher[String]("period")
+  object OptionalIsRead extends OptionalQueryParamDecoderMatcher[Boolean]("isRead")
+  object OptionalNotificationType extends OptionalQueryParamDecoderMatcher[String]("type")
+  object OptionalPriority extends OptionalQueryParamDecoderMatcher[String]("priority")
+  object QueryParam extends QueryParamDecoderMatcher[String]("q")
 }

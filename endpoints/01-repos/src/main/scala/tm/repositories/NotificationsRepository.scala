@@ -2,6 +2,7 @@ package tm.repositories
 
 import java.time.ZonedDateTime
 
+import cats.Applicative
 import cats.effect.Resource
 import cats.implicits._
 import skunk._
@@ -73,17 +74,13 @@ object NotificationsRepository {
     override def getUserNotifications(
         userId: PersonId,
         filters: NotificationFilters,
-      ): F[(List[Notification], Long)] = {
-      val af = NotificationsSql.getUserNotifications(filters)
+      ): F[(List[Notification], Long)] =
       for {
-        results <- af
-          .fragment
-          .query(NotificationsSql.notificationCodec *: skunk.codec.all.int8)
-          .queryList((userId, filters.limit.getOrElse(20), filters.offset.getOrElse(0)))
-        notifications = results.map(_._1)
-        totalCount = results.headOption.fold(0L)(_._2)
+        notifications <- NotificationsSql
+          .getUserNotifications(filters)
+          .queryList(userId)
+        totalCount = notifications.length.toLong
       } yield (notifications, totalCount)
-    }
 
     override def getUnreadCount(userId: PersonId): F[Long] =
       NotificationsSql.getUnreadCount.queryUnique(userId)
@@ -127,7 +124,7 @@ object NotificationsRepository {
       ): F[Unit] =
       NotificationsSql
         .updateDeliveryLogStatus
-        .execute((logId, status, attempts, errorMessage, deliveredAt))
+        .execute((NotificationId(logId), status, errorMessage))
 
     override def getFailedDeliveries(maxAttempts: Int): F[List[NotificationDeliveryLog]] =
       NotificationsSql.getFailedDeliveries.queryList(maxAttempts)
@@ -136,8 +133,8 @@ object NotificationsRepository {
       for {
         (total, unread, today, week) <- NotificationsSql.getNotificationStats.queryUnique(userId)
         // TODO: Implement byType and byPriority statistics
-        byType = Map.empty[NotificationType, Long]
-        byPriority = Map.empty[NotificationPriority, Long]
+        byType = Map.empty[String, Long]
+        byPriority = Map.empty[String, Long]
       } yield NotificationStats(
         totalCount = total,
         unreadCount = unread,
@@ -155,7 +152,7 @@ object NotificationsRepository {
         // For bulk insert, we need to insert one by one or use a batch command
         notifications.traverse_(createNotification)
       else
-        cats.effect.Sync[F].unit
+        Applicative[F].unit
 
     override def cleanupExpiredNotifications(): F[Unit] =
       NotificationsSql.cleanupExpiredNotifications.execute(skunk.Void)

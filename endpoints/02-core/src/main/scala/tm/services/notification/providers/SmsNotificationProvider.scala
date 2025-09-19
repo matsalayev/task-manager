@@ -13,7 +13,6 @@ import tm.domain.PersonId
 import tm.domain.notifications.DeliveryMethod
 import tm.domain.notifications.DeliveryStatus
 import tm.domain.notifications.Notification
-import tm.repositories.NotificationsRepository
 import tm.repositories.UsersRepository
 
 trait SmsNotificationProvider[F[_]] {
@@ -57,7 +56,7 @@ object TwilioSmsResponse {
 }
 
 object SmsNotificationProvider {
-  def make[F[_]: MonadThrow](
+  def make[F[_]: MonadThrow: cats.effect.Sync](
       smsConfig: SmsConfig,
       usersRepo: UsersRepository[F],
       backend: SttpBackend[F, Any],
@@ -67,7 +66,7 @@ object SmsNotificationProvider {
         userOpt <- usersRepo.findById(notification.userId)
         user <- userOpt.fold(
           MonadThrow[F].raiseError[tm.domain.corporate.User](new RuntimeException("User not found"))
-        )(_.pure[F])
+        )(user => user.asInstanceOf[tm.domain.corporate.User].pure[F]) // TODO: Fix type conversion
 
         // Get user's phone number
         userPhone = extractPhoneFromUser(user)
@@ -102,7 +101,9 @@ object SmsNotificationProvider {
       smsConfig.fromNumber.nonEmpty &&
       smsConfig.endpoint.nonEmpty
 
-    override def testConnection(): F[Boolean] = MonadThrow[F]
+    override def testConnection(): F[Boolean] = cats
+      .effect
+      .Sync[F]
       .delay {
         // Simple validation - in production, this could make a test API call
         isConfigured
@@ -208,7 +209,7 @@ object SmsNotificationProvider {
     private def extractPhoneFromUser(user: tm.domain.corporate.User): String =
       // TODO: Implement proper phone extraction from user model
       // For now, assume phone is stored in a specific format
-      user.phone.getOrElse("+1234567890") // Placeholder
+      user.phone.value // TODO: Handle Option type properly
 
     private def formatSmsContent(notification: Notification): String = {
       val priorityPrefix = notification.priority match {

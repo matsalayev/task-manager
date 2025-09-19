@@ -8,16 +8,9 @@ import enumeratum._
 import io.circe.Codec
 import io.circe.generic.semiauto._
 
-import tm.domain.PersonId
-import tm.domain.ProjectId
 import tm.domain.TaskId
 import tm.domain.corporate.User
-import tm.domain.task.Task
-import tm.domain.time.DailyTimeReport
 import tm.domain.time.EnhancedWorkSession
-import tm.domain.time.ProductivityMetrics
-import tm.domain.time.TimeEntry
-import tm.domain.time.WeeklyTimeReport
 import tm.syntax.circe._
 
 case class DashboardData(

@@ -1,12 +1,13 @@
 package tm.services.notification.providers
 
-import cats.effect.IO
-import cats.implicits._
-import weaver._
-import sttp.client3._
-import sttp.client3.testing._
 import java.time.ZonedDateTime
 import java.util.UUID
+
+import cats.effect.IO
+import cats.implicits._
+import sttp.client3._
+import sttp.client3.testing._
+import weaver._
 
 import tm.domain.PersonId
 import tm.domain.notifications._
@@ -17,20 +18,23 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
   // Mock users repository for testing
   def mockUsersRepo: UsersRepository[IO] = new UsersRepository[IO] {
     override def findById(id: PersonId): IO[Option[tm.domain.corporate.User]] = {
-      val mockUser = tm.domain.corporate.User(
-        id = id,
-        username = "testuser",
-        email = "test@example.com",
-        phone = Some("+1234567890"),
-        firstName = "Test",
-        lastName = "User",
-        role = tm.domain.corporate.UserRole.Employee,
-        department = Some("Engineering"),
-        position = Some("Software Developer"),
-        isActive = true,
-        createdAt = ZonedDateTime.now(),
-        updatedAt = ZonedDateTime.now()
-      )
+      val mockUser = tm
+        .domain
+        .corporate
+        .User(
+          id = id,
+          username = "testuser",
+          email = "test@example.com",
+          phone = Some("+1234567890"),
+          firstName = "Test",
+          lastName = "User",
+          role = tm.domain.corporate.UserRole.Employee,
+          department = Some("Engineering"),
+          position = Some("Software Developer"),
+          isActive = true,
+          createdAt = ZonedDateTime.now(),
+          updatedAt = ZonedDateTime.now(),
+        )
       IO.pure(Some(mockUser))
     }
 
@@ -38,9 +42,11 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
     override def create(user: tm.domain.corporate.User): IO[Unit] = IO.unit
     override def update(user: tm.domain.corporate.User): IO[Unit] = IO.unit
     override def delete(id: PersonId): IO[Unit] = IO.unit
-    override def findByUsername(username: String): IO[Option[tm.domain.corporate.User]] = IO.pure(None)
+    override def findByUsername(username: String): IO[Option[tm.domain.corporate.User]] =
+      IO.pure(None)
     override def findByEmail(email: String): IO[Option[tm.domain.corporate.User]] = IO.pure(None)
-    override def list(limit: Int, offset: Int): IO[List[tm.domain.corporate.User]] = IO.pure(List.empty)
+    override def list(limit: Int, offset: Int): IO[List[tm.domain.corporate.User]] =
+      IO.pure(List.empty)
   }
 
   def testTwilioConfig: SmsConfig = SmsConfig(
@@ -49,7 +55,7 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
     apiSecret = "test_api_secret",
     fromNumber = "+1234567890",
     endpoint = "https://api.twilio.com/2010-04-01/Accounts/test/Messages.json",
-    maxMessageLength = 160
+    maxMessageLength = 160,
   )
 
   def testNexmoConfig: SmsConfig = SmsConfig(
@@ -58,7 +64,7 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
     apiSecret = "test_api_secret",
     fromNumber = "TaskManager",
     endpoint = "https://rest.nexmo.com/sms/json",
-    maxMessageLength = 160
+    maxMessageLength = 160,
   )
 
   def testNotification: Notification = Notification(
@@ -80,7 +86,7 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
     actionUrl = Some("https://app.example.com/tasks/123"),
     actionLabel = Some("View Task"),
     createdAt = ZonedDateTime.now(),
-    updatedAt = ZonedDateTime.now()
+    updatedAt = ZonedDateTime.now(),
   )
 
   test("SMS provider configuration check") {
@@ -104,13 +110,15 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
 
   test("SMS message length truncation") {
     val usersRepo = mockUsersRepo
-    val mockBackend = SttpBackendStub.synchronous[Identity]
+    val mockBackend = SttpBackendStub
+      .synchronous[Identity]
       .whenRequestMatches(_ => true)
       .thenRespond("""{"sid": "test123", "status": "queued"}""")
 
     val provider = SmsNotificationProvider.make[IO](testTwilioConfig, usersRepo, mockBackend.toIO)
 
-    val longMessage = "This is a very long SMS message that exceeds the maximum length limit and should be truncated automatically by the provider to fit within the allowed character count for SMS messages which is typically 160 characters for standard SMS."
+    val longMessage =
+      "This is a very long SMS message that exceeds the maximum length limit and should be truncated automatically by the provider to fit within the allowed character count for SMS messages which is typically 160 characters for standard SMS."
 
     for {
       _ <- provider.sendSms("+1234567890", longMessage)
@@ -119,7 +127,8 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
 
   test("Twilio SMS sending") {
     val usersRepo = mockUsersRepo
-    val mockBackend = SttpBackendStub.synchronous[Identity]
+    val mockBackend = SttpBackendStub
+      .synchronous[Identity]
       .whenRequestMatches(_.uri.toString.contains("twilio"))
       .thenRespond("""{"sid": "SM123456789", "status": "queued"}""")
 
@@ -132,9 +141,12 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
 
   test("Twilio SMS sending failure") {
     val usersRepo = mockUsersRepo
-    val mockBackend = SttpBackendStub.synchronous[Identity]
+    val mockBackend = SttpBackendStub
+      .synchronous[Identity]
       .whenRequestMatches(_.uri.toString.contains("twilio"))
-      .thenRespond("""{"sid": "SM123456789", "status": "failed", "error_code": 21211, "error_message": "Invalid 'To' Phone Number"}""")
+      .thenRespond(
+        """{"sid": "SM123456789", "status": "failed", "error_code": 21211, "error_message": "Invalid 'To' Phone Number"}"""
+      )
 
     val provider = SmsNotificationProvider.make[IO](testTwilioConfig, usersRepo, mockBackend.toIO)
 
@@ -145,7 +157,8 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
 
   test("Nexmo SMS sending") {
     val usersRepo = mockUsersRepo
-    val mockBackend = SttpBackendStub.synchronous[Identity]
+    val mockBackend = SttpBackendStub
+      .synchronous[Identity]
       .whenRequestMatches(_.uri.toString.contains("nexmo"))
       .thenRespond("""{"messages": [{"status": "0", "message-id": "123456"}]}""")
 
@@ -158,7 +171,8 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
 
   test("Nexmo SMS sending failure") {
     val usersRepo = mockUsersRepo
-    val mockBackend = SttpBackendStub.synchronous[Identity]
+    val mockBackend = SttpBackendStub
+      .synchronous[Identity]
       .whenRequestMatches(_.uri.toString.contains("nexmo"))
       .thenRespond("""{"messages": [{"status": "2", "error-text": "Invalid parameters"}]}""")
 
@@ -172,11 +186,12 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
   test("AWS SNS SMS sending") {
     val awsConfig = testTwilioConfig.copy(
       provider = "aws-sns",
-      endpoint = "https://sns.us-east-1.amazonaws.com/"
+      endpoint = "https://sns.us-east-1.amazonaws.com/",
     )
 
     val usersRepo = mockUsersRepo
-    val mockBackend = SttpBackendStub.synchronous[Identity]
+    val mockBackend = SttpBackendStub
+      .synchronous[Identity]
       .whenRequestMatches(_.uri.toString.contains("sns"))
       .thenRespond("""{"MessageId": "12345678-1234-1234-1234-123456789012"}""")
 
@@ -201,7 +216,8 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
 
   test("SMS notification with different priorities") {
     val usersRepo = mockUsersRepo
-    val mockBackend = SttpBackendStub.synchronous[Identity]
+    val mockBackend = SttpBackendStub
+      .synchronous[Identity]
       .whenRequestMatches(_ => true)
       .thenRespond("""{"sid": "test123", "status": "queued"}""")
 
@@ -209,12 +225,12 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
 
     val criticalNotification = testNotification.copy(
       priority = NotificationPriority.Critical,
-      notificationType = NotificationType.TaskOverdue
+      notificationType = NotificationType.TaskOverdue,
     )
 
     val normalNotification = testNotification.copy(
       priority = NotificationPriority.Normal,
-      notificationType = NotificationType.ProjectUpdate
+      notificationType = NotificationType.ProjectUpdate,
     )
 
     for {
@@ -225,7 +241,8 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
 
   test("SMS notification with different types") {
     val usersRepo = mockUsersRepo
-    val mockBackend = SttpBackendStub.synchronous[Identity]
+    val mockBackend = SttpBackendStub
+      .synchronous[Identity]
       .whenRequestMatches(_ => true)
       .thenRespond("""{"sid": "test123", "status": "queued"}""")
 
@@ -237,7 +254,7 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
       NotificationType.TaskOverdue,
       NotificationType.ProjectUpdate,
       NotificationType.TeamUpdate,
-      NotificationType.SystemAlert
+      NotificationType.SystemAlert,
     )
 
     for {
@@ -263,7 +280,7 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
       connectionTest <- mockProvider.testConnection()
 
     } yield expect(isConfigured == true) and
-           expect(connectionTest == true)
+      expect(connectionTest == true)
   }
 
   test("SMS provider handles user not found") {
@@ -272,13 +289,16 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
       override def create(user: tm.domain.corporate.User): IO[Unit] = IO.unit
       override def update(user: tm.domain.corporate.User): IO[Unit] = IO.unit
       override def delete(id: PersonId): IO[Unit] = IO.unit
-      override def findByUsername(username: String): IO[Option[tm.domain.corporate.User]] = IO.pure(None)
+      override def findByUsername(username: String): IO[Option[tm.domain.corporate.User]] =
+        IO.pure(None)
       override def findByEmail(email: String): IO[Option[tm.domain.corporate.User]] = IO.pure(None)
-      override def list(limit: Int, offset: Int): IO[List[tm.domain.corporate.User]] = IO.pure(List.empty)
+      override def list(limit: Int, offset: Int): IO[List[tm.domain.corporate.User]] =
+        IO.pure(List.empty)
     }
 
     val mockBackend = SttpBackendStub.synchronous[Identity]
-    val provider = SmsNotificationProvider.make[IO](testTwilioConfig, emptyUsersRepo, mockBackend.toIO)
+    val provider =
+      SmsNotificationProvider.make[IO](testTwilioConfig, emptyUsersRepo, mockBackend.toIO)
 
     for {
       result <- provider.sendSms(testNotification).attempt
@@ -287,7 +307,8 @@ object SmsNotificationProviderSpec extends SimpleIOSuite {
 
   test("SMS content formatting with action URL") {
     val usersRepo = mockUsersRepo
-    val mockBackend = SttpBackendStub.synchronous[Identity]
+    val mockBackend = SttpBackendStub
+      .synchronous[Identity]
       .whenRequestMatches(_ => true)
       .thenRespond("""{"sid": "test123", "status": "queued"}""")
 

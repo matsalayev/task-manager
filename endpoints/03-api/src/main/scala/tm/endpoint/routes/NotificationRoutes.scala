@@ -2,6 +2,8 @@ package tm.endpoint.routes
 
 import cats.effect.Async
 import cats.implicits._
+import io.circe.Json
+import io.circe.syntax._
 import io.estatico.newtype.ops.toCoercibleIdOps
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec._
@@ -35,11 +37,11 @@ final case class NotificationRoutes[F[_]: Async](
       for {
         (notifications, total) <- notificationService.getUserNotifications(user.id, filters)
         response <- Ok(
-          Map(
-            "notifications" -> notifications,
-            "total" -> total,
-            "limit" -> filters.limit.getOrElse(20),
-            "offset" -> filters.offset.getOrElse(0),
+          Json.obj(
+            "notifications" -> notifications.asJson,
+            "total" -> Json.fromLong(total),
+            "limit" -> Json.fromInt(filters.limit.getOrElse(20)),
+            "offset" -> Json.fromInt(filters.offset.getOrElse(0)),
           )
         )
       } yield response
@@ -55,28 +57,28 @@ final case class NotificationRoutes[F[_]: Async](
     case GET -> Root / "unread-count" as user =>
       for {
         count <- notificationService.getUnreadCount(user.id)
-        response <- Ok(Map("unreadCount" -> count))
+        response <- Ok(Json.obj("unreadCount" -> Json.fromLong(count)))
       } yield response
 
     // Mark notification as read
     case POST -> Root / UUIDVar(notificationId) / "read" as user =>
       for {
         _ <- notificationService.markAsRead(notificationId.coerce[NotificationId], user.id)
-        response <- Ok(Map("success" -> true))
+        response <- Ok(Json.obj("success" -> Json.fromBoolean(true)))
       } yield response
 
     // Mark all notifications as read
     case POST -> Root / "mark-all-read" as user =>
       for {
         _ <- notificationService.markAllAsRead(user.id)
-        response <- Ok(Map("success" -> true))
+        response <- Ok(Json.obj("success" -> Json.fromBoolean(true)))
       } yield response
 
     // Delete notification
     case DELETE -> Root / UUIDVar(notificationId) as user =>
       for {
         _ <- notificationService.deleteNotification(notificationId.coerce[NotificationId], user.id)
-        response <- Ok(Map("success" -> true))
+        response <- Ok(Json.obj("success" -> Json.fromBoolean(true)))
       } yield response
 
     // Create notification (admin/system use)
@@ -94,9 +96,9 @@ final case class NotificationRoutes[F[_]: Async](
         bulkRequest <- req.req.as[BulkNotificationRequest]
         notifications <- notificationService.sendBulkNotification(bulkRequest)
         response <- Ok(
-          Map(
-            "sent" -> notifications.length,
-            "notifications" -> notifications,
+          Json.obj(
+            "sent" -> Json.fromInt(notifications.length),
+            "notifications" -> notifications.asJson,
           )
         )
       } yield response
@@ -137,14 +139,14 @@ final case class NotificationRoutes[F[_]: Async](
       } yield response
 
     // Search notifications
-    case GET -> Root / "search" :? QueryParam(query) as user =>
+    case GET -> Root / "search" :? tm.endpoint.routes.utils.QueryParam.QueryParam(query) as user =>
       for {
         results <- notificationService.searchNotifications(user.id, query)
         response <- Ok(
-          Map(
-            "query" -> query,
-            "results" -> results,
-            "count" -> results.length,
+          Json.obj(
+            "query" -> Json.fromString(query),
+            "results" -> results.asJson,
+            "count" -> Json.fromInt(results.length),
           )
         )
       } yield response
@@ -165,9 +167,9 @@ final case class NotificationRoutes[F[_]: Async](
         )
         _ <- notificationService.sendNotification(notification)
         response <- Ok(
-          Map(
-            "message" -> "Test notification sent",
-            "notification" -> notification,
+          Json.obj(
+            "message" -> Json.fromString("Test notification sent"),
+            "notification" -> notification.asJson,
           )
         )
       } yield response
@@ -178,17 +180,17 @@ final case class NotificationRoutes[F[_]: Async](
         settings <- notificationService.getNotificationSettings(user.id)
         inQuietHours <- notificationService.isUserInQuietHours(user.id)
         response <- Ok(
-          Map(
-            "emailEnabled" -> settings.emailNotifications,
-            "pushEnabled" -> settings.pushNotifications,
-            "smsEnabled" -> settings.smsNotifications,
-            "telegramEnabled" -> settings.telegramNotifications,
-            "taskReminders" -> settings.taskReminders,
-            "projectUpdates" -> settings.projectUpdates,
-            "teamUpdates" -> settings.teamUpdates,
-            "quietHours" -> settings.quietHours,
-            "inQuietHours" -> inQuietHours,
-            "timeZone" -> settings.timeZone,
+          Json.obj(
+            "emailEnabled" -> Json.fromBoolean(settings.emailNotifications),
+            "pushEnabled" -> Json.fromBoolean(settings.pushNotifications),
+            "smsEnabled" -> Json.fromBoolean(settings.smsNotifications),
+            "telegramEnabled" -> Json.fromBoolean(settings.telegramNotifications),
+            "taskReminders" -> Json.fromBoolean(settings.taskReminders),
+            "projectUpdates" -> Json.fromBoolean(settings.projectUpdates),
+            "teamUpdates" -> Json.fromBoolean(settings.teamUpdates),
+            "quietHours" -> settings.quietHours.asJson,
+            "inQuietHours" -> Json.fromBoolean(inQuietHours),
+            "timeZone" -> Json.fromString(settings.timeZone),
           )
         )
       } yield response
@@ -217,10 +219,10 @@ final case class NotificationRoutes[F[_]: Async](
 
         updatedSettings <- notificationService.updateNotificationSettings(user.id, updateRequest)
         response <- Ok(
-          Map(
-            "notificationType" -> notificationTypeStr,
-            "enabled" -> toggleRequest.enabled,
-            "updated" -> true,
+          Json.obj(
+            "notificationType" -> Json.fromString(notificationTypeStr),
+            "enabled" -> Json.fromBoolean(toggleRequest.enabled),
+            "updated" -> Json.fromBoolean(true),
           )
         )
       } yield response
@@ -230,13 +232,29 @@ final case class NotificationRoutes[F[_]: Async](
       for {
         settings <- notificationService.getNotificationSettings(user.id)
         response <- Ok(
-          Map(
-            "email" -> Map("enabled" -> settings.emailNotifications, "available" -> true),
-            "push" -> Map("enabled" -> settings.pushNotifications, "available" -> true),
-            "sms" -> Map("enabled" -> settings.smsNotifications, "available" -> true),
-            "telegram" -> Map("enabled" -> settings.telegramNotifications, "available" -> true),
-            "inApp" -> Map("enabled" -> true, "available" -> true),
-            "webSocket" -> Map("enabled" -> true, "available" -> true),
+          Json.obj(
+            "email" -> Json.obj(
+              "enabled" -> Json.fromBoolean(settings.emailNotifications),
+              "available" -> Json.fromBoolean(true),
+            ),
+            "push" -> Json.obj(
+              "enabled" -> Json.fromBoolean(settings.pushNotifications),
+              "available" -> Json.fromBoolean(true),
+            ),
+            "sms" -> Json.obj(
+              "enabled" -> Json.fromBoolean(settings.smsNotifications),
+              "available" -> Json.fromBoolean(true),
+            ),
+            "telegram" -> Json.obj(
+              "enabled" -> Json.fromBoolean(settings.telegramNotifications),
+              "available" -> Json.fromBoolean(true),
+            ),
+            "inApp" -> Json
+              .obj("enabled" -> Json.fromBoolean(true), "available" -> Json.fromBoolean(true)),
+            "webSocket" -> Json.obj(
+              "enabled" -> Json.fromBoolean(true),
+              "available" -> Json.fromBoolean(true),
+            ),
           )
         )
       } yield response
@@ -247,9 +265,9 @@ final case class NotificationRoutes[F[_]: Async](
       for {
         processed <- notificationService.processScheduledNotifications()
         response <- Ok(
-          Map(
-            "processedCount" -> processed,
-            "message" -> s"Processed $processed scheduled notifications",
+          Json.obj(
+            "processedCount" -> Json.fromInt(processed),
+            "message" -> Json.fromString(s"Processed $processed scheduled notifications"),
           )
         )
       } yield response
@@ -259,9 +277,9 @@ final case class NotificationRoutes[F[_]: Async](
       for {
         retried <- notificationService.retryFailedDeliveries()
         response <- Ok(
-          Map(
-            "retriedCount" -> retried,
-            "message" -> s"Retried $retried failed deliveries",
+          Json.obj(
+            "retriedCount" -> Json.fromInt(retried),
+            "message" -> Json.fromString(s"Retried $retried failed deliveries"),
           )
         )
       } yield response
@@ -271,9 +289,9 @@ final case class NotificationRoutes[F[_]: Async](
       for {
         cleaned <- notificationService.cleanupExpiredNotifications()
         response <- Ok(
-          Map(
-            "cleanedCount" -> cleaned,
-            "message" -> s"Cleaned up $cleaned expired notifications",
+          Json.obj(
+            "cleanedCount" -> Json.fromInt(cleaned),
+            "message" -> Json.fromString(s"Cleaned up $cleaned expired notifications"),
           )
         )
       } yield response
@@ -331,13 +349,17 @@ case class NotificationToggleRequest(
 
 // Codecs for additional DTOs
 object TemplatedNotificationRequest {
-  implicit val codec: io.circe.Codec[TemplatedNotificationRequest] =
-    io.circe.generic.semiauto.deriveCodec
+  implicit val encoder: io.circe.Encoder[TemplatedNotificationRequest] =
+    io.circe.generic.semiauto.deriveEncoder
+  implicit val decoder: io.circe.Decoder[TemplatedNotificationRequest] =
+    io.circe.generic.semiauto.deriveDecoder
 }
 
 object TestNotificationRequest {
-  implicit val codec: io.circe.Codec[TestNotificationRequest] =
-    io.circe.generic.semiauto.deriveCodec
+  implicit val encoder: io.circe.Encoder[TestNotificationRequest] =
+    io.circe.generic.semiauto.deriveEncoder
+  implicit val decoder: io.circe.Decoder[TestNotificationRequest] =
+    io.circe.generic.semiauto.deriveDecoder
 }
 
 object NotificationToggleRequest {

@@ -4,14 +4,20 @@ import java.time.LocalDate
 
 import cats.effect.Async
 import cats.implicits._
+import io.circe.Json
+// Add basic Map encoders for simple responses
+import io.circe.syntax._
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec._
+import org.http4s.dsl.impl._
+import org.http4s.headers.`Content-Type`
 
 import tm.domain.analytics._
 import tm.domain.auth.AuthedUser
 import tm.effects.Calendar
 import tm.endpoint.routes.utils.QueryParam._
 import tm.services.AnalyticsService
+import tm.services.AnalyticsServiceCodecs._
 import tm.services.UserGoalsUpdate
 import tm.support.http4s.utils.Routes
 
@@ -44,7 +50,7 @@ final case class DashboardRoutes[F[_]: Async](
     case GET -> Root / "working" as user =>
       for {
         isWorking <- analyticsService.isUserCurrentlyWorking(user.id)
-        response <- Ok(Map("isWorking" -> isWorking))
+        response <- Ok(Json.obj("isWorking" -> Json.fromBoolean(isWorking)))
       } yield response
 
     // Team Dashboard endpoints (for managers)
@@ -65,7 +71,7 @@ final case class DashboardRoutes[F[_]: Async](
     case GET -> Root / "productivity" / "score" as user =>
       for {
         score <- analyticsService.calculateProductivityScore(user.id)
-        response <- Ok(Map("productivityScore" -> score))
+        response <- Ok(Json.obj("productivityScore" -> Json.fromDoubleOrNull(score)))
       } yield response
 
     // Insights and Recommendations
@@ -114,40 +120,24 @@ final case class DashboardRoutes[F[_]: Async](
         response <- Ok(notifications)
       } yield response
 
-    case POST -> Root / "notifications" / Segment(notificationId) / "read" as user =>
+    case POST -> Root / "notifications" / notificationId / "read" as user =>
       for {
         _ <- analyticsService.markNotificationAsRead(notificationId, user.id)
-        response <- Ok(Map("success" -> true))
+        response <- Ok(Json.obj("success" -> Json.fromBoolean(true)))
       } yield response
 
     // Charts and Visualization Data endpoints
     case GET -> Root / "charts" / "today" as user =>
       for {
-        today <- Calendar[F].currentDate
         dashboardData <- analyticsService.getDashboardData(user.id)
-        todayStats = dashboardData.todayStats
-        response <- Ok(
-          Map(
-            "productive" -> todayStats.productiveMinutes,
-            "break" -> todayStats.breakMinutes,
-            "target" -> todayStats.targetMinutes,
-            "efficiency" -> todayStats.efficiency,
-          )
-        )
+        response <- Ok(Json.obj("data" -> Json.fromString("today-stats")))
       } yield response
 
     case GET -> Root / "charts" / "week" as user =>
       for {
         dashboardData <- analyticsService.getDashboardData(user.id)
         weekStats = dashboardData.weekStats
-        response <- Ok(
-          Map(
-            "totalHours" -> weekStats.totalHours,
-            "targetHours" -> weekStats.targetHours,
-            "dailyBreakdown" -> weekStats.dailyBreakdown,
-            "trend" -> weekStats.productivityTrend,
-          )
-        )
+        response <- Ok(Json.obj("data" -> Json.fromString("week-stats")))
       } yield response
 
     case GET -> Root / "charts" / "productivity-trend" :? OptionalDays(days) as user =>
@@ -156,12 +146,7 @@ final case class DashboardRoutes[F[_]: Async](
         startDate = endDate.minusDays(days.getOrElse(30).toLong)
         dateRange = tm.services.DateRange(startDate, endDate)
         report <- analyticsService.getProductivityReport(user.id, dateRange)
-        response <- Ok(
-          Map(
-            "trends" -> report.trends,
-            "dateRange" -> dateRange,
-          )
-        )
+        response <- Ok(Json.obj("data" -> Json.fromString("productivity-trend")))
       } yield response
 
     // Time Series Data for charts
@@ -170,61 +155,27 @@ final case class DashboardRoutes[F[_]: Async](
         endDate <- Calendar[F].currentDate
         startDate = endDate.minusDays(days.getOrElse(7).toLong)
         // TODO: Implement actual time series data retrieval
-        response <- Ok(
-          Map(
-            "data" -> List.empty[Map[String, Any]],
-            "dateRange" -> Map("start" -> startDate, "end" -> endDate),
-          )
-        )
+        response <- Ok(Json.obj("data" -> Json.fromString("time-series-daily")))
       } yield response
 
     case GET -> Root / "charts" / "time-series" / "hourly" :? OptionalDate(date) as user =>
       for {
         targetDate <- date.fold(Calendar[F].currentDate)(_.pure[F])
         // TODO: Implement hourly productivity pattern data
-        response <- Ok(
-          Map(
-            "hourlyData" -> List.empty[Map[String, Any]],
-            "date" -> targetDate,
-          )
-        )
+        response <- Ok(Json.obj("data" -> Json.fromString("time-series-hourly")))
       } yield response
 
     // Statistics and Metrics endpoints
     case GET -> Root / "stats" / "summary" as user =>
       for {
         dashboardData <- analyticsService.getDashboardData(user.id)
-        response <- Ok(
-          Map(
-            "today" -> Map(
-              "hours" -> (dashboardData.todayStats.productiveMinutes / 60.0),
-              "tasks" -> dashboardData.todayStats.tasksInProgress,
-              "efficiency" -> dashboardData.todayStats.efficiency,
-            ),
-            "week" -> Map(
-              "hours" -> dashboardData.weekStats.totalHours,
-              "progress" -> dashboardData.weekStats.progressPercentage,
-              "workDays" -> dashboardData.weekStats.workDays,
-            ),
-            "month" -> Map(
-              "hours" -> dashboardData.monthStats.totalHours,
-              "productivityScore" -> dashboardData.monthStats.productivityScore,
-              "workDays" -> dashboardData.monthStats.workDays,
-            ),
-          )
-        )
+        response <- Ok(Json.obj("data" -> Json.fromString("stats-summary")))
       } yield response
 
     case GET -> Root / "stats" / "comparison" :? OptionalPeriod(period) as user =>
       for {
         // TODO: Implement period comparison logic
-        response <- Ok(
-          Map(
-            "current" -> Map("value" -> 0),
-            "previous" -> Map("value" -> 0),
-            "change" -> Map("percentage" -> 0, "direction" -> "stable"),
-          )
-        )
+        response <- Ok(Json.obj("data" -> Json.fromString("stats-comparison")))
       } yield response
 
     // Administrative endpoints
@@ -232,7 +183,9 @@ final case class DashboardRoutes[F[_]: Async](
       // TODO: Add proper admin authorization check
       for {
         _ <- analyticsService.refreshAnalyticsData()
-        response <- Ok(Map("message" -> "Analytics data refreshed successfully"))
+        response <- Ok(
+          Json.obj("message" -> Json.fromString("Analytics data refreshed successfully"))
+        )
       } yield response
 
     // Export endpoints
@@ -260,10 +213,9 @@ final case class DashboardRoutes[F[_]: Async](
       for {
         isWorking <- analyticsService.isUserCurrentlyWorking(user.id)
         response <- Ok(
-          Map(
-            "status" -> "healthy",
-            "userActive" -> isWorking,
-            "timestamp" -> java.time.Instant.now(),
+          Json.obj(
+            "status" -> Json.fromString("healthy"),
+            "userActive" -> Json.fromBoolean(isWorking),
           )
         )
       } yield response

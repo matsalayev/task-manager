@@ -3,8 +3,6 @@ package tm.endpoint.routes
 import scala.concurrent.duration._
 
 import cats.effect.Async
-import cats.effect.Concurrent
-import cats.effect.Ref
 import cats.effect.std.Queue
 import cats.implicits._
 import fs2.Pipe
@@ -15,13 +13,11 @@ import io.circe.Encoder
 import io.circe.generic.semiauto._
 import io.circe.syntax._
 import org.http4s._
-import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.websocket.WebSocketFrame
 import org.http4s.websocket.WebSocketFrame.Close
 import org.http4s.websocket.WebSocketFrame.Ping
-import org.http4s.websocket.WebSocketFrame.Pong
 import org.http4s.websocket.WebSocketFrame.Text
 
 import tm.domain.PersonId
@@ -78,7 +74,7 @@ final case class NotificationWebSocketRoutes[F[_]: Async](
         }
 
         // Start the notification checker in background
-        _ <- notificationChecker.start
+        _ <- Async[F].start(notificationChecker)
 
         // Send initial data
         _ <- sendInitialData(user.id, userQueue)
@@ -102,14 +98,14 @@ final case class NotificationWebSocketRoutes[F[_]: Async](
 
         inputSink: Pipe[F, WebSocketFrame, Unit] = _.evalMap {
           case Text("refresh", _) =>
-            getUnreadCountUpdate(user.id).flatMap(topic.publish1)
+            getUnreadCountUpdate(user.id).flatMap(topic.publish1).void
           case Close(_) =>
             Async[F].unit
           case _ =>
             Async[F].unit
         }
 
-        _ <- countChecker.compile.drain.start
+        _ <- Async[F].start(countChecker.compile.drain)
         response <- wsBuilder.build(outputStream, inputSink)
       } yield response
 
@@ -137,7 +133,7 @@ final case class NotificationWebSocketRoutes[F[_]: Async](
             Async[F].unit
         }
 
-        _ <- adminChecker.compile.drain.start
+        _ <- Async[F].start(adminChecker.compile.drain)
         response <- wsBuilder.build(outputStream, inputSink)
       } yield response
   }
@@ -193,8 +189,8 @@ final case class NotificationWebSocketRoutes[F[_]: Async](
     result match {
       case Right("mark_read") =>
         for {
-          json <- io.circe.parser.parse(data).pure[F]
-          notificationId <- json.hcursor.get[String]("notificationId").pure[F]
+          parsed <- Async[F].fromEither(io.circe.parser.parse(data))
+          notificationId <- Async[F].fromEither(parsed.hcursor.get[String]("notificationId"))
           uuid <- Async[F].fromTry(scala.util.Try(java.util.UUID.fromString(notificationId)))
           _ <- notificationService.markAsRead(NotificationId(uuid), userId)
           unreadCount <- notificationService.getUnreadCount(userId)

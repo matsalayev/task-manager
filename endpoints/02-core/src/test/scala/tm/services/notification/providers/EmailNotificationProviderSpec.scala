@@ -1,10 +1,11 @@
 package tm.services.notification.providers
 
+import java.time.ZonedDateTime
+import java.util.UUID
+
 import cats.effect.IO
 import cats.implicits._
 import weaver._
-import java.time.ZonedDateTime
-import java.util.UUID
 
 import tm.domain.PersonId
 import tm.domain.notifications._
@@ -15,20 +16,23 @@ object EmailNotificationProviderSpec extends SimpleIOSuite {
   // Mock users repository for testing
   def mockUsersRepo: UsersRepository[IO] = new UsersRepository[IO] {
     override def findById(id: PersonId): IO[Option[tm.domain.corporate.User]] = {
-      val mockUser = tm.domain.corporate.User(
-        id = id,
-        username = "testuser",
-        email = "test@example.com",
-        phone = Some("+1234567890"),
-        firstName = "Test",
-        lastName = "User",
-        role = tm.domain.corporate.UserRole.Employee,
-        department = Some("Engineering"),
-        position = Some("Software Developer"),
-        isActive = true,
-        createdAt = ZonedDateTime.now(),
-        updatedAt = ZonedDateTime.now()
-      )
+      val mockUser = tm
+        .domain
+        .corporate
+        .User(
+          id = id,
+          username = "testuser",
+          email = "test@example.com",
+          phone = Some("+1234567890"),
+          firstName = "Test",
+          lastName = "User",
+          role = tm.domain.corporate.UserRole.Employee,
+          department = Some("Engineering"),
+          position = Some("Software Developer"),
+          isActive = true,
+          createdAt = ZonedDateTime.now(),
+          updatedAt = ZonedDateTime.now(),
+        )
       IO.pure(Some(mockUser))
     }
 
@@ -36,9 +40,11 @@ object EmailNotificationProviderSpec extends SimpleIOSuite {
     override def create(user: tm.domain.corporate.User): IO[Unit] = IO.unit
     override def update(user: tm.domain.corporate.User): IO[Unit] = IO.unit
     override def delete(id: PersonId): IO[Unit] = IO.unit
-    override def findByUsername(username: String): IO[Option[tm.domain.corporate.User]] = IO.pure(None)
+    override def findByUsername(username: String): IO[Option[tm.domain.corporate.User]] =
+      IO.pure(None)
     override def findByEmail(email: String): IO[Option[tm.domain.corporate.User]] = IO.pure(None)
-    override def list(limit: Int, offset: Int): IO[List[tm.domain.corporate.User]] = IO.pure(List.empty)
+    override def list(limit: Int, offset: Int): IO[List[tm.domain.corporate.User]] =
+      IO.pure(List.empty)
   }
 
   def testEmailConfig: EmailConfig = EmailConfig(
@@ -49,7 +55,7 @@ object EmailNotificationProviderSpec extends SimpleIOSuite {
     fromEmail = "noreply@example.com",
     fromName = "Task Manager",
     useTLS = true,
-    useSSL = false
+    useSSL = false,
   )
 
   def testNotification: Notification = Notification(
@@ -71,7 +77,7 @@ object EmailNotificationProviderSpec extends SimpleIOSuite {
     actionUrl = Some("https://app.example.com/tasks/123"),
     actionLabel = Some("View Task"),
     createdAt = ZonedDateTime.now(),
-    updatedAt = ZonedDateTime.now()
+    updatedAt = ZonedDateTime.now(),
   )
 
   test("email provider configuration check") {
@@ -113,11 +119,11 @@ object EmailNotificationProviderSpec extends SimpleIOSuite {
         to = "recipient@example.com",
         subject = "Test Subject",
         content = "Test content",
-        isHtml = false
+        isHtml = false,
       )
 
     } yield expect(mockProvider.isConfigured == true) and
-           expect(mockProvider.testConnection().map(_ == true).unsafeRunSync())
+      expect(mockProvider.testConnection().map(_ == true).unsafeRunSync())
   }
 
   test("email content formatting") {
@@ -127,17 +133,17 @@ object EmailNotificationProviderSpec extends SimpleIOSuite {
     // Create notification with different priorities
     val criticalNotification = testNotification.copy(
       priority = NotificationPriority.Critical,
-      notificationType = NotificationType.TaskOverdue
+      notificationType = NotificationType.TaskOverdue,
     )
 
     val normalNotification = testNotification.copy(
       priority = NotificationPriority.Normal,
-      notificationType = NotificationType.ProjectUpdate
+      notificationType = NotificationType.ProjectUpdate,
     )
 
     val lowNotification = testNotification.copy(
       priority = NotificationPriority.Low,
-      notificationType = NotificationType.ProductivityInsight
+      notificationType = NotificationType.ProductivityInsight,
     )
 
     // Test that notifications with different priorities and types would be formatted differently
@@ -151,9 +157,11 @@ object EmailNotificationProviderSpec extends SimpleIOSuite {
       override def create(user: tm.domain.corporate.User): IO[Unit] = IO.unit
       override def update(user: tm.domain.corporate.User): IO[Unit] = IO.unit
       override def delete(id: PersonId): IO[Unit] = IO.unit
-      override def findByUsername(username: String): IO[Option[tm.domain.corporate.User]] = IO.pure(None)
+      override def findByUsername(username: String): IO[Option[tm.domain.corporate.User]] =
+        IO.pure(None)
       override def findByEmail(email: String): IO[Option[tm.domain.corporate.User]] = IO.pure(None)
-      override def list(limit: Int, offset: Int): IO[List[tm.domain.corporate.User]] = IO.pure(List.empty)
+      override def list(limit: Int, offset: Int): IO[List[tm.domain.corporate.User]] =
+        IO.pure(List.empty)
     }
 
     val provider = EmailNotificationProvider.make[IO](testEmailConfig, emptyUsersRepo)
@@ -168,12 +176,12 @@ object EmailNotificationProviderSpec extends SimpleIOSuite {
 
     val notificationWithAction = testNotification.copy(
       actionUrl = Some("https://app.example.com/tasks/123"),
-      actionLabel = Some("Complete Task")
+      actionLabel = Some("Complete Task"),
     )
 
     val notificationWithoutAction = testNotification.copy(
       actionUrl = None,
-      actionLabel = None
+      actionLabel = None,
     )
 
     // Test that both notifications can be processed
@@ -194,22 +202,30 @@ object EmailNotificationProviderSpec extends SimpleIOSuite {
       (NotificationType.ProjectUpdate, NotificationPriority.Normal),
       (NotificationType.TeamUpdate, NotificationPriority.Low),
       (NotificationType.SystemAlert, NotificationPriority.Critical),
-      (NotificationType.ProductivityInsight, NotificationPriority.Low)
+      (NotificationType.ProductivityInsight, NotificationPriority.Low),
     )
 
-    val notifications = notificationTypes.map { case (notType, priority) =>
-      testNotification.copy(
-        notificationType = notType,
-        priority = priority,
-        title = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom(s"${notType.toString} Notification"),
-        content = s"This is a ${priority.toString.toLowerCase} priority ${notType.toString} notification."
-      )
+    val notifications = notificationTypes.map {
+      case (notType, priority) =>
+        testNotification.copy(
+          notificationType = notType,
+          priority = priority,
+          title = eu
+            .timepit
+            .refined
+            .types
+            .string
+            .NonEmptyString
+            .unsafeFrom(s"${notType.toString} Notification"),
+          content =
+            s"This is a ${priority.toString.toLowerCase} priority ${notType.toString} notification.",
+        )
     }
 
     // Test that all notification types and priorities can be handled
     // In a real test, you might want to capture the formatted output and verify specific formatting
     expect(notifications.length == 7) and
-    expect(notifications.forall(n => provider.isConfigured))
+      expect(notifications.forall(n => provider.isConfigured))
   }
 
   test("email message truncation and encoding") {
@@ -224,7 +240,7 @@ object EmailNotificationProviderSpec extends SimpleIOSuite {
     val specialCharContent = "Special chars: áéíóú, 中文, эмодзи 🚀, & < > \" '"
     val specialCharNotification = testNotification.copy(
       content = specialCharContent,
-      title = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("Special Characters Test")
+      title = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("Special Characters Test"),
     )
 
     // Both should be handled without throwing exceptions
@@ -239,12 +255,13 @@ object EmailNotificationProviderSpec extends SimpleIOSuite {
       (testEmailConfig.copy(username = ""), false), // Empty username
       (testEmailConfig.copy(fromEmail = ""), false), // Empty from email
       (testEmailConfig.copy(smtpPort = 0), false), // Invalid port
-      (testEmailConfig, true) // Valid config
+      (testEmailConfig, true), // Valid config
     )
 
-    val results = configTests.map { case (config, expectedValid) =>
-      val provider = EmailNotificationProvider.make[IO](config, usersRepo)
-      provider.isConfigured == expectedValid
+    val results = configTests.map {
+      case (config, expectedValid) =>
+        val provider = EmailNotificationProvider.make[IO](config, usersRepo)
+        provider.isConfigured == expectedValid
     }
 
     expect(results.forall(identity))
