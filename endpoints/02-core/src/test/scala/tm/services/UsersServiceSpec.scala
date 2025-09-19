@@ -2,16 +2,15 @@ package tm.services
 
 import java.util.UUID
 
+import _root_.tm.domain.PersonId
+import _root_.tm.domain.users.UserInvitation
+import _root_.tm.domain.users.UserRegistration
+import _root_.tm.repositories.PeopleRepository
+import _root_.tm.repositories.UsersRepository
+import _root_.tm.syntax.refined._
 import cats.effect.IO
 import eu.timepit.refined.types.string.NonEmptyString
 import weaver.SimpleIOSuite
-
-import tm.domain.PersonId
-import tm.domain.users.UserInvitation
-import tm.domain.users.UserRegistration
-import tm.repositories.PeopleRepository
-import tm.repositories.UsersRepository
-import tm.syntax.refined._
 
 object UsersServiceSpec extends SimpleIOSuite {
 

@@ -4,21 +4,20 @@ import java.time.LocalTime
 import java.time.ZonedDateTime
 import java.util.UUID
 
+import _root_.tm.domain.PersonId
+import _root_.tm.domain.notifications._
+import _root_.tm.effects.Calendar
+import _root_.tm.effects.GenUUID
+import _root_.tm.repositories.NotificationsRepository
+import _root_.tm.repositories.UsersRepository
+import _root_.tm.services.notification.providers.EmailNotificationProvider
+import _root_.tm.services.notification.providers.SmsNotificationProvider
+import _root_.tm.support.database.DatabaseResource
+import _root_.tm.support.database.DatabaseSuite
+import _root_.tm.utils.ID
 import cats.effect.IO
 import cats.implicits._
 import weaver._
-
-import tm.domain.PersonId
-import tm.domain.notifications._
-import tm.effects.Calendar
-import tm.effects.GenUUID
-import tm.repositories.NotificationsRepository
-import tm.repositories.UsersRepository
-import tm.services.notification.providers.EmailNotificationProvider
-import tm.services.notification.providers.SmsNotificationProvider
-import tm.support.database.DatabaseResource
-import tm.support.database.DatabaseSuite
-import tm.utils.ID
 
 object NotificationIntegrationSpec extends DatabaseSuite {
   override type Res = DatabaseResource[IO]

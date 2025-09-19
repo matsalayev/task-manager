@@ -4,18 +4,13 @@ import scala.concurrent.duration._
 
 import cats.effect.Async
 import cats.effect.Concurrent
-import cats.effect.Ref
 import cats.effect.std.Queue
 import cats.implicits._
 import fs2.Pipe
 import fs2.Stream
 import fs2.concurrent.Topic
-import io.circe.Decoder
-import io.circe.Encoder
-import io.circe.generic.semiauto._
 import io.circe.syntax._
 import org.http4s._
-import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.websocket.WebSocketFrame
@@ -23,12 +18,13 @@ import org.http4s.websocket.WebSocketFrame.Close
 import org.http4s.websocket.WebSocketFrame.Text
 
 import tm.domain.PersonId
-import tm.domain.analytics._
 import tm.domain.auth.AuthedUser
+import tm.domain.notifications.NotificationPriority
+import tm.domain.websocket._
 import tm.services.AnalyticsService
 import tm.support.http4s.utils.Routes
 
-final case class DashboardWebSocketRoutes[F[_]: Async](
+final case class DashboardWebSocketRoutes[F[_]: Async: Concurrent](
     analyticsService: AnalyticsService[F],
     wsBuilder: WebSocketBuilder2[F],
   ) extends Routes[F, AuthedUser]
@@ -67,7 +63,7 @@ final case class DashboardWebSocketRoutes[F[_]: Async](
         }
 
         // Start the update stream in background
-        _ <- updateStream.compile.drain.start
+        _ <- Concurrent[F].start(updateStream.compile.drain)
 
         response <- wsBuilder.build(outputStream, inputSink)
       } yield response
@@ -95,7 +91,7 @@ final case class DashboardWebSocketRoutes[F[_]: Async](
             Async[F].unit
         }
 
-        _ <- updateStream.compile.drain.start
+        _ <- Concurrent[F].start(updateStream.compile.drain)
         response <- wsBuilder.build(outputStream, inputSink)
       } yield response
 
@@ -120,7 +116,7 @@ final case class DashboardWebSocketRoutes[F[_]: Async](
             Async[F].unit
         }
 
-        _ <- updateStream.compile.drain.start
+        _ <- Concurrent[F].start(updateStream.compile.drain)
         response <- wsBuilder.build(outputStream, inputSink)
       } yield response
 
@@ -145,7 +141,7 @@ final case class DashboardWebSocketRoutes[F[_]: Async](
             Async[F].unit
         }
 
-        _ <- updateStream.compile.drain.start
+        _ <- Concurrent[F].start(updateStream.compile.drain)
         response <- wsBuilder.build(outputStream, inputSink)
       } yield response
 
@@ -170,7 +166,7 @@ final case class DashboardWebSocketRoutes[F[_]: Async](
             Async[F].unit
         }
 
-        _ <- updateStream.compile.drain.start
+        _ <- Concurrent[F].start(updateStream.compile.drain)
         response <- wsBuilder.build(outputStream, inputSink)
       } yield response
   }
@@ -285,134 +281,8 @@ final case class DashboardWebSocketRoutes[F[_]: Async](
       Async[F].unit
 }
 
-// WebSocket Message Types
-
-sealed trait WebSocketMessage {
-  def messageType: String
-  def timestamp: java.time.Instant
-}
-
-case class DashboardUpdateMessage(
-    messageType: String,
-    timestamp: java.time.Instant,
-    data: DashboardUpdateData,
-  ) extends WebSocketMessage
-
-case class DashboardUpdateData(
-    isWorking: Boolean,
-    currentSessionDuration: Int,
-    todayProductiveMinutes: Int,
-    weekTotalHours: Double,
-    efficiency: Double,
-    productivityScore: Double,
-  )
-
-case class TeamUpdateMessage(
-    messageType: String,
-    timestamp: java.time.Instant,
-    data: TeamUpdateData,
-  ) extends WebSocketMessage
-
-case class TeamUpdateData(
-    teamStats: TeamStats,
-    activeMembers: Int,
-    todayTeamHours: Double,
-    averageProductivity: Double,
-    alertsCount: Int,
-  )
-
-case class ProductivityUpdateMessage(
-    messageType: String,
-    timestamp: java.time.Instant,
-    data: ProductivityUpdateData,
-  ) extends WebSocketMessage
-
-case class ProductivityUpdateData(
-    currentEfficiency: Double,
-    sessionDuration: Int,
-    todayProgress: Double,
-    newInsightsCount: Int,
-    isProductiveSession: Boolean,
-  )
-
-case class GoalUpdateMessage(
-    messageType: String,
-    timestamp: java.time.Instant,
-    data: GoalUpdateData,
-  ) extends WebSocketMessage
-
-case class GoalUpdateData(
-    dailyProgress: Double,
-    weeklyProgress: Double,
-    streakProgress: Int,
-    productivityProgress: Double,
-  )
-
-case class NotificationUpdateMessage(
-    messageType: String,
-    timestamp: java.time.Instant,
-    data: NotificationUpdateData,
-  ) extends WebSocketMessage
-
-case class NotificationUpdateData(
-    unreadCount: Int,
-    latestNotifications: List[DashboardNotification],
-    hasHighPriority: Boolean,
-  )
-
-// JSON Codecs for WebSocket messages
-object DashboardUpdateMessage {
-  implicit val encoder: Encoder[DashboardUpdateMessage] = deriveEncoder
-  implicit val decoder: Decoder[DashboardUpdateMessage] = deriveDecoder
-}
-
-object DashboardUpdateData {
-  implicit val encoder: Encoder[DashboardUpdateData] = deriveEncoder
-  implicit val decoder: Decoder[DashboardUpdateData] = deriveDecoder
-}
-
-object TeamUpdateMessage {
-  implicit val encoder: Encoder[TeamUpdateMessage] = deriveEncoder
-  implicit val decoder: Decoder[TeamUpdateMessage] = deriveDecoder
-}
-
-object TeamUpdateData {
-  implicit val encoder: Encoder[TeamUpdateData] = deriveEncoder
-  implicit val decoder: Decoder[TeamUpdateData] = deriveDecoder
-}
-
-object ProductivityUpdateMessage {
-  implicit val encoder: Encoder[ProductivityUpdateMessage] = deriveEncoder
-  implicit val decoder: Decoder[ProductivityUpdateMessage] = deriveDecoder
-}
-
-object ProductivityUpdateData {
-  implicit val encoder: Encoder[ProductivityUpdateData] = deriveEncoder
-  implicit val decoder: Decoder[ProductivityUpdateData] = deriveDecoder
-}
-
-object GoalUpdateMessage {
-  implicit val encoder: Encoder[GoalUpdateMessage] = deriveEncoder
-  implicit val decoder: Decoder[GoalUpdateMessage] = deriveDecoder
-}
-
-object GoalUpdateData {
-  implicit val encoder: Encoder[GoalUpdateData] = deriveEncoder
-  implicit val decoder: Decoder[GoalUpdateData] = deriveDecoder
-}
-
-object NotificationUpdateMessage {
-  implicit val encoder: Encoder[NotificationUpdateMessage] = deriveEncoder
-  implicit val decoder: Decoder[NotificationUpdateMessage] = deriveDecoder
-}
-
-object NotificationUpdateData {
-  implicit val encoder: Encoder[NotificationUpdateData] = deriveEncoder
-  implicit val decoder: Decoder[NotificationUpdateData] = deriveDecoder
-}
-
 object DashboardWebSocketRoutes {
-  def apply[F[_]: Async](
+  def apply[F[_]: Async: Concurrent](
       analyticsService: AnalyticsService[F],
       wsBuilder: WebSocketBuilder2[F],
     ): DashboardWebSocketRoutes[F] =

@@ -3,23 +3,22 @@ package tm.services
 import java.time.LocalDate
 import java.time.ZonedDateTime
 
+import _root_.tm.domain.PersonId
+import _root_.tm.domain.analytics._
+import _root_.tm.domain.corporate.User
+import _root_.tm.repositories.AnalyticsRepository
+import _root_.tm.repositories.TimeTrackingRepository
+import _root_.tm.repositories.UsersRepository
+import _root_.tm.repositories.sql.AnalyticsData
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import weaver.SimpleIOSuite
 
-import tm.domain.PersonId
-import tm.domain.analytics._
-import tm.domain.corporate.User
-import tm.effects.TestCalendar
-import tm.repositories.mocks.MockAnalyticsRepository
-import tm.repositories.mocks.MockTimeTrackingRepository
-import tm.repositories.mocks.MockUsersRepository
-
 object AnalyticsServiceSpec extends SimpleIOSuite {
   def createMockService: AnalyticsService[IO] = {
-    val analyticsRepo = new MockAnalyticsRepository[IO]()
-    val usersRepo = new MockUsersRepository[IO]()
-    val timeTrackingRepo = new MockTimeTrackingRepository[IO]()
+    val analyticsRepo = new tm.repositories.mocks.MockAnalyticsRepository[IO]()
+    val usersRepo = new tm.repositories.mocks.MockUsersRepository[IO]()
+    val timeTrackingRepo = new tm.repositories.mocks.MockTimeTrackingRepository[IO]()
 
     AnalyticsService.make[IO](analyticsRepo, usersRepo, timeTrackingRepo)
   }
@@ -166,7 +165,8 @@ object AnalyticsServiceSpec extends SimpleIOSuite {
   test("getProductivityReport returns comprehensive report") {
     val service = createMockService
     val userId = PersonId(java.util.UUID.randomUUID())
-    val dateRange = tm
+    val dateRange = _root_
+      .tm
       .services
       .DateRange(
         startDate = LocalDate.now().minusDays(7),
@@ -213,56 +213,70 @@ package tm.repositories.mocks {
   import cats.effect.Ref
   import cats.implicits._
 
-  class MockAnalyticsRepository[F[_]: cats.effect.Sync] extends AnalyticsRepository[F] {
-    private val mockTodayStats = Map.empty[PersonId, DailyProductivityData]
-    private val mockUserGoals = Ref.unsafe[F, Map[PersonId, UserGoalsData]](Map.empty)
+  class MockAnalyticsRepository[F[_]: cats.effect.Sync]
+      extends _root_.tm.repositories.AnalyticsRepository[F] {
+    private val mockTodayStats = Map.empty[PersonId, AnalyticsData.DailyProductivityData]
+    private val mockUserGoals = Ref.unsafe[F, Map[PersonId, AnalyticsData.UserGoalsData]](Map.empty)
 
-    def getTodayStats(userId: PersonId): F[Option[DailyProductivityData]] =
-      None.pure[F]
+    def getTodayStats(userId: PersonId): F[Option[AnalyticsData.DailyProductivityData]] =
+      Option.empty[AnalyticsData.DailyProductivityData].pure[F]
 
-    def getWeekStats(userId: PersonId, weekStart: LocalDate): F[Option[WeeklyProductivityData]] =
-      None.pure[F]
+    def getWeekStats(
+        userId: PersonId,
+        weekStart: LocalDate,
+      ): F[Option[AnalyticsData.WeeklyProductivityData]] =
+      Option.empty[AnalyticsData.WeeklyProductivityData].pure[F]
 
-    def getUserGoals(userId: PersonId): F[Option[UserGoalsData]] =
+    def getUserGoals(userId: PersonId): F[Option[AnalyticsData.UserGoalsData]] =
       mockUserGoals.get.map(_.get(userId))
 
-    def upsertUserGoals(goals: UserGoalsData): F[Unit] =
+    def upsertUserGoals(goals: AnalyticsData.UserGoalsData): F[Unit] =
       mockUserGoals.update(_.updated(goals.userId, goals))
 
-    def getRecentTasks(userId: PersonId, limit: Int): F[List[RecentTaskData]] =
-      List.empty[RecentTaskData].pure[F]
+    def getRecentTasks(userId: PersonId, limit: Int): F[List[AnalyticsData.RecentTaskData]] =
+      List.empty[AnalyticsData.RecentTaskData].pure[F]
 
-    def getUnreadNotifications(userId: PersonId): F[List[DashboardNotificationData]] =
-      List.empty[DashboardNotificationData].pure[F]
+    def getUnreadNotifications(userId: PersonId): F[List[AnalyticsData.DashboardNotificationData]] =
+      List.empty[AnalyticsData.DashboardNotificationData].pure[F]
 
-    def getProductivityInsights(userId: PersonId): F[List[ProductivityInsightData]] =
-      List.empty[ProductivityInsightData].pure[F]
+    def getProductivityInsights(userId: PersonId): F[List[AnalyticsData.ProductivityInsightData]] =
+      List.empty[AnalyticsData.ProductivityInsightData].pure[F]
 
-    def getCurrentWorkSession(userId: PersonId): F[Option[EnhancedWorkSessionData]] =
-      None.pure[F]
+    def getCurrentWorkSession(userId: PersonId): F[Option[AnalyticsData.EnhancedWorkSessionData]] =
+      Option.empty[AnalyticsData.EnhancedWorkSessionData].pure[F]
 
-    def getRunningTimeEntries(userId: PersonId): F[List[TimeEntryData]] =
-      List.empty[TimeEntryData].pure[F]
+    def getRunningTimeEntries(userId: PersonId): F[List[AnalyticsData.TimeEntryData]] =
+      List.empty[AnalyticsData.TimeEntryData].pure[F]
 
     def getProductivityScore(userId: PersonId): F[Double] =
       75.0.pure[F] // Mock score
 
-    def getUserProductivityRanking(userId: PersonId): F[Option[UserProductivityRankingData]] =
-      None.pure[F]
+    def getUserProductivityRanking(
+        userId: PersonId
+      ): F[Option[AnalyticsData.UserProductivityRankingData]] =
+      Option.empty[AnalyticsData.UserProductivityRankingData].pure[F]
 
-    def getHourlyProductivityPatterns(userId: PersonId): F[List[HourlyProductivityData]] =
-      List.empty[HourlyProductivityData].pure[F]
+    def getHourlyProductivityPatterns(
+        userId: PersonId
+      ): F[List[AnalyticsData.HourlyProductivityData]] =
+      List.empty[AnalyticsData.HourlyProductivityData].pure[F]
 
-    def getTaskCompletionPerformance(userId: PersonId): F[List[TaskCompletionPerformanceData]] =
-      List.empty[TaskCompletionPerformanceData].pure[F]
+    def getTaskCompletionPerformance(
+        userId: PersonId
+      ): F[List[AnalyticsData.TaskCompletionPerformanceData]] =
+      List.empty[AnalyticsData.TaskCompletionPerformanceData].pure[F]
 
-    def getTeamProductivityOverview(userId: PersonId): F[List[TeamProductivityOverviewData]] =
-      List.empty[TeamProductivityOverviewData].pure[F]
+    def getTeamProductivityOverview(
+        userId: PersonId
+      ): F[List[AnalyticsData.TeamProductivityOverviewData]] =
+      List.empty[AnalyticsData.TeamProductivityOverviewData].pure[F]
 
-    def insertProductivityInsight(insight: ProductivityInsightData): F[Unit] =
+    def insertProductivityInsight(insight: AnalyticsData.ProductivityInsightData): F[Unit] =
       ().pure[F]
 
-    def insertDashboardNotification(notification: DashboardNotificationData): F[Unit] =
+    def insertDashboardNotification(
+        notification: AnalyticsData.DashboardNotificationData
+      ): F[Unit] =
       ().pure[F]
 
     def markNotificationAsRead(notificationId: java.util.UUID, userId: PersonId): F[Unit] =
@@ -275,13 +289,14 @@ package tm.repositories.mocks {
       ().pure[F]
   }
 
-  class MockUsersRepository[F[_]: cats.effect.Sync] extends tm.repositories.UsersRepository[F] {
+  class MockUsersRepository[F[_]: cats.effect.Sync]
+      extends _root_.tm.repositories.UsersRepository[F] {
     def findById(id: PersonId): F[Option[User]] =
-      None.pure[F] // Return None to simulate user not found
+      Option.empty[User].pure[F] // Return None to simulate user not found
   }
 
   class MockTimeTrackingRepository[F[_]: cats.effect.Sync]
-      extends tm.repositories.TimeTrackingRepository[F] {
+      extends _root_.tm.repositories.TimeTrackingRepository[F] {
     // Implement all required methods as no-ops or with mock data
     // This is a simplified version - full implementation would have all methods
   }

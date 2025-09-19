@@ -1,18 +1,12 @@
 package tm.endpoint.routes
 
-import java.time.LocalDate
-
 import cats.effect.Async
 import cats.implicits._
 import io.circe.Json
-// Add basic Map encoders for simple responses
-import io.circe.syntax._
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec._
-import org.http4s.dsl.impl._
 import org.http4s.headers.`Content-Type`
 
-import tm.domain.analytics._
 import tm.domain.auth.AuthedUser
 import tm.effects.Calendar
 import tm.endpoint.routes.utils.QueryParam._
@@ -150,7 +144,7 @@ final case class DashboardRoutes[F[_]: Async](
       } yield response
 
     // Time Series Data for charts
-    case GET -> Root / "charts" / "time-series" / "daily" :? OptionalDays(days) as user =>
+    case GET -> Root / "charts" / "time-series" / "daily" :? OptionalDays(days) as _ =>
       for {
         endDate <- Calendar[F].currentDate
         startDate = endDate.minusDays(days.getOrElse(7).toLong)
@@ -158,7 +152,7 @@ final case class DashboardRoutes[F[_]: Async](
         response <- Ok(Json.obj("data" -> Json.fromString("time-series-daily")))
       } yield response
 
-    case GET -> Root / "charts" / "time-series" / "hourly" :? OptionalDate(date) as user =>
+    case GET -> Root / "charts" / "time-series" / "hourly" :? OptionalDate(date) as _ =>
       for {
         targetDate <- date.fold(Calendar[F].currentDate)(_.pure[F])
         // TODO: Implement hourly productivity pattern data
@@ -172,14 +166,14 @@ final case class DashboardRoutes[F[_]: Async](
         response <- Ok(Json.obj("data" -> Json.fromString("stats-summary")))
       } yield response
 
-    case GET -> Root / "stats" / "comparison" :? OptionalPeriod(period) as user =>
+    case GET -> Root / "stats" / "comparison" :? OptionalPeriod(_) as _ =>
       for {
         // TODO: Implement period comparison logic
         response <- Ok(Json.obj("data" -> Json.fromString("stats-comparison")))
       } yield response
 
     // Administrative endpoints
-    case POST -> Root / "admin" / "refresh" as user =>
+    case POST -> Root / "admin" / "refresh" as _ =>
       // TODO: Add proper admin authorization check
       for {
         _ <- analyticsService.refreshAnalyticsData()
@@ -189,7 +183,7 @@ final case class DashboardRoutes[F[_]: Async](
       } yield response
 
     // Export endpoints
-    case GET -> Root / "export" / "dashboard" / "json" :? OptionalDate(date) as user =>
+    case GET -> Root / "export" / "dashboard" / "json" :? OptionalDate(_) as user =>
       for {
         dashboardData <- analyticsService.getDashboardData(user.id)
         response <- Ok(dashboardData)

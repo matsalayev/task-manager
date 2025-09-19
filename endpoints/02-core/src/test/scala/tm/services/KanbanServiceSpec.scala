@@ -2,13 +2,12 @@ package tm.services
 
 import java.util.UUID
 
+import _root_.tm.domain.PersonId
+import _root_.tm.domain.ProjectId
+import _root_.tm.domain.TaskId
+import _root_.tm.domain.enums.TaskStatus
 import cats.effect.IO
 import weaver.SimpleIOSuite
-
-import tm.domain.PersonId
-import tm.domain.ProjectId
-import tm.domain.TaskId
-import tm.domain.enums.TaskStatus
 
 object KanbanServiceSpec extends SimpleIOSuite {
   test("KanbanService should compile") {

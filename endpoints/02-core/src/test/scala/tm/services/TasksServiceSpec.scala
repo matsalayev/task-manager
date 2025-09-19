@@ -3,18 +3,17 @@ package tm.services
 import java.time.ZonedDateTime
 import java.util.UUID
 
+import _root_.tm.domain.CorporateId
+import _root_.tm.domain.PersonId
+import _root_.tm.domain.ProjectId
+import _root_.tm.domain.TagId
+import _root_.tm.domain.TaskId
+import _root_.tm.domain.enums.TaskStatus
+import _root_.tm.domain.task.Tag
+import _root_.tm.domain.task.Task
 import cats.effect.IO
 import eu.timepit.refined.types.string.NonEmptyString
 import weaver.SimpleIOSuite
-
-import tm.domain.CorporateId
-import tm.domain.PersonId
-import tm.domain.ProjectId
-import tm.domain.TagId
-import tm.domain.TaskId
-import tm.domain.enums.TaskStatus
-import tm.domain.task.Tag
-import tm.domain.task.Task
 
 object TasksServiceSpec extends SimpleIOSuite {
   test("TasksService should compile") {

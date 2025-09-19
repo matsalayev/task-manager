@@ -307,3 +307,33 @@ object NotificationStats {
 object BulkNotificationRequest {
   implicit val codec: Codec[BulkNotificationRequest] = deriveCodec
 }
+
+case class TemplatedNotificationRequest(
+    userId: PersonId,
+    notificationType: NotificationType,
+    variables: Map[String, String],
+    deliveryMethods: Set[DeliveryMethod] = Set(DeliveryMethod.InApp),
+  )
+
+case class TestNotificationRequest(
+    title: NonEmptyString,
+    content: String,
+    priority: Option[NotificationPriority] = None,
+    deliveryMethods: Option[Set[DeliveryMethod]] = None,
+  )
+
+case class NotificationToggleRequest(
+    enabled: Boolean
+  )
+
+object TemplatedNotificationRequest {
+  implicit val codec: Codec[TemplatedNotificationRequest] = deriveCodec
+}
+
+object TestNotificationRequest {
+  implicit val codec: Codec[TestNotificationRequest] = deriveCodec
+}
+
+object NotificationToggleRequest {
+  implicit val codec: Codec[NotificationToggleRequest] = deriveCodec
+}

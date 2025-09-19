@@ -13,6 +13,7 @@ import tm.domain.notifications._
 import tm.endpoint.routes.utils.QueryParam._
 import tm.services.NotificationService
 import tm.support.http4s.utils.Routes
+import tm.syntax.circe._
 
 final case class NotificationRoutes[F[_]: Async](
     notificationService: NotificationService[F]
@@ -22,7 +23,7 @@ final case class NotificationRoutes[F[_]: Async](
   override val `private`: AuthedRoutes[AuthedUser, F] = AuthedRoutes.of {
 
     // Get user notifications with filters
-    case req @ GET -> Root :? OptionalIsRead(isRead) +& OptionalNotificationType(
+    case _ @GET -> Root :? OptionalIsRead(isRead) +& OptionalNotificationType(
            notificationType
          ) +& OptionalPriority(priority) +& OptionalLimit(limit) +& OptionalOffset(
            offset
@@ -39,7 +40,7 @@ final case class NotificationRoutes[F[_]: Async](
         response <- Ok(
           Json.obj(
             "notifications" -> notifications.asJson,
-            "total" -> Json.fromLong(total),
+            "total" -> Json.fromLong(total.toLong),
             "limit" -> Json.fromInt(filters.limit.getOrElse(20)),
             "offset" -> Json.fromInt(filters.offset.getOrElse(0)),
           )
@@ -260,7 +261,7 @@ final case class NotificationRoutes[F[_]: Async](
       } yield response
 
     // Admin routes (would need proper admin authorization)
-    case POST -> Root / "admin" / "process-scheduled" as user =>
+    case POST -> Root / "admin" / "process-scheduled" as _ =>
       // TODO: Add admin authorization check
       for {
         processed <- notificationService.processScheduledNotifications()
@@ -272,7 +273,7 @@ final case class NotificationRoutes[F[_]: Async](
         )
       } yield response
 
-    case POST -> Root / "admin" / "retry-failed" as user =>
+    case POST -> Root / "admin" / "retry-failed" as _ =>
       // TODO: Add admin authorization check
       for {
         retried <- notificationService.retryFailedDeliveries()
@@ -284,7 +285,7 @@ final case class NotificationRoutes[F[_]: Async](
         )
       } yield response
 
-    case POST -> Root / "admin" / "cleanup" as user =>
+    case POST -> Root / "admin" / "cleanup" as _ =>
       // TODO: Add admin authorization check
       for {
         cleaned <- notificationService.cleanupExpiredNotifications()
@@ -326,45 +327,6 @@ final case class NotificationRoutes[F[_]: Async](
       case "Critical" => NotificationPriority.Critical
       case _ => NotificationPriority.Normal // Default fallback
     }
-}
-
-// Additional request DTOs
-case class TemplatedNotificationRequest(
-    userId: tm.domain.PersonId,
-    notificationType: NotificationType,
-    variables: Map[String, String],
-    deliveryMethods: Set[DeliveryMethod] = Set(DeliveryMethod.InApp),
-  )
-
-case class TestNotificationRequest(
-    title: eu.timepit.refined.types.string.NonEmptyString,
-    content: String,
-    priority: Option[NotificationPriority] = None,
-    deliveryMethods: Option[Set[DeliveryMethod]] = None,
-  )
-
-case class NotificationToggleRequest(
-    enabled: Boolean
-  )
-
-// Codecs for additional DTOs
-object TemplatedNotificationRequest {
-  implicit val encoder: io.circe.Encoder[TemplatedNotificationRequest] =
-    io.circe.generic.semiauto.deriveEncoder
-  implicit val decoder: io.circe.Decoder[TemplatedNotificationRequest] =
-    io.circe.generic.semiauto.deriveDecoder
-}
-
-object TestNotificationRequest {
-  implicit val encoder: io.circe.Encoder[TestNotificationRequest] =
-    io.circe.generic.semiauto.deriveEncoder
-  implicit val decoder: io.circe.Decoder[TestNotificationRequest] =
-    io.circe.generic.semiauto.deriveDecoder
-}
-
-object NotificationToggleRequest {
-  implicit val codec: io.circe.Codec[NotificationToggleRequest] =
-    io.circe.generic.semiauto.deriveCodec
 }
 
 object NotificationRoutes {

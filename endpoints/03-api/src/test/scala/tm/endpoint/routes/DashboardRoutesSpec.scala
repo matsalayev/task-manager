@@ -9,6 +9,8 @@ import org.http4s.circe.CirceEntityCodec._
 import org.http4s.implicits._
 import weaver.SimpleIOSuite
 
+import tm.Phone
+import tm.domain.CorporateId
 import tm.domain.PersonId
 import tm.domain.analytics._
 import tm.domain.auth.AuthedUser
@@ -25,12 +27,10 @@ object DashboardRoutesSpec extends SimpleIOSuite {
         id = userId,
         createdAt = java.time.ZonedDateTime.now(),
         role = Role.Employee,
-        phone = "+1234567890",
-        photo = None,
+        phone = eu.timepit.refined.refineV.unsafeFrom("+123456789012"),
+        assetId = None,
         corporateId = tm.domain.CorporateId(java.util.UUID.randomUUID()),
-        password = None,
-        updatedAt = None,
-        deletedAt = None,
+        password = eu.timepit.refined.refineV.unsafeFrom("password123"),
       )
 
       IO.pure(
@@ -182,7 +182,7 @@ object DashboardRoutesSpec extends SimpleIOSuite {
             id = "notification-1",
             title = "Task Deadline Approaching",
             message = "Task 'Review PR' is due tomorrow",
-            `type` = NotificationType.TaskDeadline,
+            notificationType = NotificationType.TaskDeadline,
             priority = NotificationPriority.High,
             isRead = false,
             createdAt = java.time.LocalDateTime.now(),
@@ -204,9 +204,11 @@ object DashboardRoutesSpec extends SimpleIOSuite {
       IO.pure(85.0)
   }
 
-  def createTestUser: AuthedUser = AuthedUser(
+  def createTestUser: AuthedUser = AuthedUser.User(
     id = PersonId(java.util.UUID.randomUUID()),
+    corporateId = CorporateId(java.util.UUID.randomUUID()),
     role = Role.Employee,
+    phone = eu.timepit.refined.refineV.unsafeFrom("+123456789012"),
   )
 
   test("GET /dashboard/personal returns dashboard data") {
@@ -215,7 +217,8 @@ object DashboardRoutesSpec extends SimpleIOSuite {
     val user = createTestUser
 
     val request = Request[IO](Method.GET, uri"/dashboard/data")
-    val response = routes.run(user -> request).value
+    val authedRequest = AuthedRequest(user, request)
+    val response = routes.run(authedRequest).value
 
     response.flatMap {
       case Some(resp) =>
@@ -240,7 +243,8 @@ object DashboardRoutesSpec extends SimpleIOSuite {
     val user = createTestUser
 
     val request = Request[IO](Method.GET, uri"/dashboard/live")
-    val response = routes.run(user -> request).value
+    val authedRequest = AuthedRequest(user, request)
+    val response = routes.run(authedRequest).value
 
     response.flatMap {
       case Some(resp) =>
@@ -265,7 +269,8 @@ object DashboardRoutesSpec extends SimpleIOSuite {
     val user = createTestUser
 
     val request = Request[IO](Method.GET, uri"/dashboard/working")
-    val response = routes.run(user -> request).value
+    val authedRequest = AuthedRequest(user, request)
+    val response = routes.run(authedRequest).value
 
     response.flatMap {
       case Some(resp) =>
@@ -289,7 +294,8 @@ object DashboardRoutesSpec extends SimpleIOSuite {
     val user = createTestUser
 
     val request = Request[IO](Method.GET, uri"/dashboard/team")
-    val response = routes.run(user -> request).value
+    val authedRequest = AuthedRequest(user, request)
+    val response = routes.run(authedRequest).value
 
     response.flatMap {
       case Some(resp) =>
@@ -314,7 +320,8 @@ object DashboardRoutesSpec extends SimpleIOSuite {
     val user = createTestUser
 
     val request = Request[IO](Method.GET, uri"/dashboard/productivity/score")
-    val response = routes.run(user -> request).value
+    val authedRequest = AuthedRequest(user, request)
+    val response = routes.run(authedRequest).value
 
     response.flatMap {
       case Some(resp) =>
@@ -338,7 +345,8 @@ object DashboardRoutesSpec extends SimpleIOSuite {
     val user = createTestUser
 
     val request = Request[IO](Method.GET, uri"/dashboard/insights")
-    val response = routes.run(user -> request).value
+    val authedRequest = AuthedRequest(user, request)
+    val response = routes.run(authedRequest).value
 
     response.flatMap {
       case Some(resp) =>
@@ -371,7 +379,8 @@ object DashboardRoutesSpec extends SimpleIOSuite {
     )
 
     val request = Request[IO](Method.PUT, uri"/dashboard/goals").withEntity(goalsUpdate)
-    val response = routes.run(user -> request).value
+    val authedRequest = AuthedRequest(user, request)
+    val response = routes.run(authedRequest).value
 
     response.flatMap {
       case Some(resp) =>
@@ -396,7 +405,8 @@ object DashboardRoutesSpec extends SimpleIOSuite {
     val user = createTestUser
 
     val request = Request[IO](Method.GET, uri"/dashboard/notifications")
-    val response = routes.run(user -> request).value
+    val authedRequest = AuthedRequest(user, request)
+    val response = routes.run(authedRequest).value
 
     response.flatMap {
       case Some(resp) =>
@@ -421,7 +431,8 @@ object DashboardRoutesSpec extends SimpleIOSuite {
     val user = createTestUser
 
     val request = Request[IO](Method.POST, uri"/dashboard/notifications/notification-1/read")
-    val response = routes.run(user -> request).value
+    val authedRequest = AuthedRequest(user, request)
+    val response = routes.run(authedRequest).value
 
     response.flatMap {
       case Some(resp) =>
@@ -445,7 +456,8 @@ object DashboardRoutesSpec extends SimpleIOSuite {
     val user = createTestUser
 
     val request = Request[IO](Method.GET, uri"/dashboard/health")
-    val response = routes.run(user -> request).value
+    val authedRequest = AuthedRequest(user, request)
+    val response = routes.run(authedRequest).value
 
     response.flatMap {
       case Some(resp) =>

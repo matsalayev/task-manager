@@ -3,13 +3,12 @@ package tm.services.notification.providers
 import java.time.ZonedDateTime
 import java.util.UUID
 
+import _root_.tm.domain.PersonId
+import _root_.tm.domain.notifications._
+import _root_.tm.repositories.UsersRepository
 import cats.effect.IO
 import cats.implicits._
 import weaver._
-
-import tm.domain.PersonId
-import tm.domain.notifications._
-import tm.repositories.UsersRepository
 
 object EmailNotificationProviderSpec extends SimpleIOSuite {
 

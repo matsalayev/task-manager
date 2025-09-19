@@ -2,19 +2,18 @@ package tm.services
 
 import java.util.UUID
 
+import _root_.tm.domain.CorporateId
+import _root_.tm.domain.PaginatedResponse
+import _root_.tm.domain.PersonId
+import _root_.tm.domain.ProjectId
+import _root_.tm.domain.project.Project
+import _root_.tm.domain.project.ProjectCreation
+import _root_.tm.domain.project.ProjectUpdate
+import _root_.tm.repositories.ProjectsRepository
+import _root_.tm.syntax.refined._
 import cats.effect.IO
 import eu.timepit.refined.types.string.NonEmptyString
 import weaver.SimpleIOSuite
-
-import tm.domain.CorporateId
-import tm.domain.PaginatedResponse
-import tm.domain.PersonId
-import tm.domain.ProjectId
-import tm.domain.project.Project
-import tm.domain.project.ProjectCreation
-import tm.domain.project.ProjectUpdate
-import tm.repositories.ProjectsRepository
-import tm.syntax.refined._
 
 object ProjectsServiceSpec extends SimpleIOSuite {
 
