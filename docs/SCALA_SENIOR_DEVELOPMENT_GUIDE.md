@@ -38,6 +38,43 @@ project-root/
 
 ---
 
+## 🚨 **CRITICAL DEVELOPMENT PATTERNS - MANDATORY USAGE**
+
+### **ID Generation Pattern**
+```scala
+// ✅ ALWAYS use this pattern for entity creation
+import projectname.utils.ID
+
+// In Service layer
+override def createEntity(input: EntityInput): F[Entity] =
+  for {
+    id <- ID.make[F, EntityId]  // ✅ REQUIRED: Use ID.make[F, TypeId]
+    now <- Calendar[F].currentZonedDateTime
+    entity = Entity(id = id, ...)
+    _ <- repository.save(entity)
+  } yield entity
+```
+
+### **Error Handling Pattern**
+```scala
+// ✅ ALWAYS use this pattern for business logic errors
+import projectname.exception.AError
+
+// In Service layer
+override def findEntityById(id: EntityId)(implicit lang: Language): F[Entity] =
+  repository.findById(id).flatMap {
+    case Some(entity) => entity.pure[F]
+    case None => AError.BadRequest(ENTITY_NOT_FOUND(lang)).raiseError[F, Entity]  // ✅ REQUIRED: Use AError.raiseError
+  }
+
+// For validation errors
+override def validateInput(input: EntityInput): F[EntityInput] =
+  if (input.isValid) input.pure[F]
+  else AError.BadRequest("Invalid input").raiseError[F, EntityInput]
+```
+
+---
+
 ## 🔥 Feature Development Workflow
 
 ### Phase 1: Database Schema Design

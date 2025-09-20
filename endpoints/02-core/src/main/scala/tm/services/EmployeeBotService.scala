@@ -1,13 +1,11 @@
 package tm.services
 
-import java.time.Duration
 import java.util.UUID
 
 import scala.concurrent.duration.DurationInt
 
 import cats.Applicative
 import cats.Monad
-import cats.implicits.catsSyntaxApplyOps
 import cats.implicits.catsSyntaxOptionId
 import cats.implicits.toFlatMapOps
 import cats.implicits.toFunctorOps
@@ -18,7 +16,6 @@ import tm.Phone
 import tm.domain.PersonId
 import tm.domain.ProjectId
 import tm.domain.TaskId
-import tm.domain.enums.TaskStatus
 import tm.domain.project.Project
 import tm.domain.telegram.BotUser
 import tm.domain.telegram.CallbackQuery
@@ -31,8 +28,6 @@ import tm.effects.GenUUID
 import tm.integrations.telegram.TelegramClient
 import tm.integrations.telegram.domain.InlineKeyboardButton
 import tm.integrations.telegram.domain.KeyboardButton
-import tm.integrations.telegram.domain.MessageEntity
-import tm.integrations.telegram.domain.MessageEntityType
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyInlineKeyboardMarkup
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyKeyboardMarkup
 import tm.integrations.telegram.domain.ReplyMarkup.ReplyKeyboardRemove

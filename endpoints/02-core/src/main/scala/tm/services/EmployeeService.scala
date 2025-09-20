@@ -3,23 +3,14 @@ package tm.services
 import cats.MonadThrow
 import cats.implicits._
 
-import tm.domain.CorporateId
 import tm.domain.PersonId
-import tm.domain.ProjectId
-import tm.domain.TagId
-import tm.domain.TaskId
 import tm.domain.corporate.CreateEmployee
 import tm.domain.corporate.User
 import tm.domain.enums.Role
-import tm.domain.task.CreateTag
-import tm.domain.task.CreateTask
-import tm.domain.task.Tag
-import tm.domain.task.Task
 import tm.effects.Calendar
 import tm.effects.GenUUID
 import tm.exception.AError
 import tm.repositories.PeopleRepository
-import tm.repositories.TasksRepository
 import tm.repositories.UsersRepository
 import tm.repositories.dto.Person
 import tm.syntax.refined._

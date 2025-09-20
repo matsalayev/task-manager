@@ -6,7 +6,6 @@ import skunk.data.Type
 import tsec.passwordhashers.PasswordHash
 import tsec.passwordhashers.jca.SCrypt
 
-import tm.Language
 import tm.domain.enums._
 
 package object sql {

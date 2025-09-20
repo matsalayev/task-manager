@@ -10,6 +10,7 @@ import eu.timepit.refined.string.MatchesRegex
 package object tm {
   type Login = String Refined MatchesRegex[W.`"(^[A-Za-z]{3,16})$"`.T]
   type Phone = String Refined MatchesRegex[W.`"""[+][\\d]{12}+"""`.T]
+  type Email = String Refined MatchesRegex[W.`"""^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"""`.T]
   type Digits = String Refined MatchesRegex[W.`"""[\\d]+"""`.T]
 //  lazy val AppDomain: String =
 //    Mode.current match {

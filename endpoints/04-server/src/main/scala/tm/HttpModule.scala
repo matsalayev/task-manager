@@ -22,14 +22,17 @@ object HttpModule {
     ): NonEmptyList[HttpRoutes[F]] =
     NonEmptyList
       .of[Routes[F, AuthedUser]](
-        new TelegramBotsRoutes[F](
-          env.services.corporateBotService,
-          env.services.employeeBotService,
-          env.telegramCorporateBot.webhookSecret,
-        ),
+        // new TelegramBotsRoutes[F](
+        //   env.services.corporateBotService,
+        //   env.services.employeeBotService,
+        //   env.telegramCorporateBot.webhookSecret,
+        // ),
         new FormsRoutes[F](env.services.employeeService),
         new AuthRoutes[F](env.services.auth),
-        new AssetsRoutes[F](env.services.projectsService),
+        new UserRoutes[F](env.services.users),
+        new AssetsRoutes[F](env.services.assets),
+        new ProjectsRoutes[F](env.services.projectsService),
+        new TimeTrackingRoutes[F](env.services.timeTrackingService),
       )
       .map { r =>
         Router(

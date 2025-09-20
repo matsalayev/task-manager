@@ -3,6 +3,9 @@ package tm.domain.task
 import java.time.ZonedDateTime
 
 import eu.timepit.refined.types.string.NonEmptyString
+import io.circe.Codec
+import io.circe.generic.semiauto._
+import io.circe.refined._
 
 import tm.domain.AssetId
 import tm.domain.PersonId
@@ -10,6 +13,8 @@ import tm.domain.ProjectId
 import tm.domain.TagId
 import tm.domain.TaskId
 import tm.domain.enums.TaskStatus
+import tm.domain.task.TaskPriority
+import tm.syntax.circe._
 
 case class Task(
     id: TaskId,
@@ -23,4 +28,12 @@ case class Task(
     status: TaskStatus,
     deadline: Option[ZonedDateTime],
     link: Option[NonEmptyString],
+    priority: Option[TaskPriority] = None,
+    position: Int = 0,
+    estimatedHours: Option[Int] = None,
+    finishedAt: Option[ZonedDateTime] = None,
   )
+
+object Task {
+  implicit val codec: Codec[Task] = deriveCodec
+}

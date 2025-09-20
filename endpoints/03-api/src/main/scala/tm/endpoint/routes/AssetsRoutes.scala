@@ -10,14 +10,14 @@ import tm.ObjectId
 import tm.domain.asset.FileMeta
 import tm.domain.auth.AuthedUser
 import tm.exception.AError
-import tm.services.ProjectsService
+import tm.services.AssetsService
 import tm.support.http4s.utils.Routes
 import tm.support.syntax.all.deriveEntityEncoder
 import tm.support.syntax.all.http4SyntaxPartOps
 import tm.syntax.circe._
 
 final case class AssetsRoutes[F[_]: JsonDecoder: Async](
-    assets: ProjectsService[F]
+    assets: AssetsService[F]
   ) extends Routes[F, AuthedUser] {
   override val path = "/assets"
 

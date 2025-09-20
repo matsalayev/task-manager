@@ -29,6 +29,14 @@ object AError {
     override def errorCode: String = "UNPROCESSABLE_ENTITY"
   }
 
+  final case class NotFound(cause: String) extends AError {
+    override def errorCode: String = "NOT_FOUND"
+  }
+
+  final case class Forbidden(cause: String) extends AError {
+    override def errorCode: String = "FORBIDDEN"
+  }
+
   sealed trait AuthError extends AError
   object AuthError {
     final case class NoSuchUser(cause: String) extends AuthError {

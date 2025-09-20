@@ -3,55 +3,73 @@ package tm.services
 import cats.MonadThrow
 import cats.implicits._
 
-import tm.domain.AssetId
 import tm.domain.CorporateId
-import tm.domain.asset.Asset
-import tm.domain.asset.FileMeta
+import tm.domain.PaginatedResponse
+import tm.domain.PersonId
+import tm.domain.ProjectId
 import tm.domain.project.Project
+import tm.domain.project.ProjectCreation
+import tm.domain.project.ProjectUpdate
 import tm.effects.Calendar
 import tm.effects.GenUUID
-import tm.integration.aws.s3.S3Client
-import tm.repositories.AssetsRepository
-import tm.syntax.refined._
+import tm.repositories.ProjectsRepository
 import tm.utils.ID
 
 trait ProjectsService[F[_]] {
-  def create(meta: FileMeta[F]): F[AssetId]
-  def get(corporateId: CorporateId): F[List[Project]]
+  def createProject(creation: ProjectCreation, createdBy: PersonId): F[ProjectId]
+  def getProjects(
+      corporateId: CorporateId,
+      limit: Int = 20,
+      page: Int = 1,
+    ): F[PaginatedResponse[Project]]
+  def getProjectById(projectId: ProjectId): F[Option[Project]]
+  def updateProject(projectId: ProjectId, update: ProjectUpdate): F[Unit]
+  def deleteProject(projectId: ProjectId): F[Unit]
 }
 
 object ProjectsService {
-  def make[F[_]: MonadThrow: GenUUID: Calendar: Lambda[M[_] => fs2.Compiler[M, M]]](
-      assetsRepository: AssetsRepository[F],
-      s3Client: S3Client[F],
+  def make[F[_]: MonadThrow: Calendar: GenUUID](
+      projectsRepository: ProjectsRepository[F]
     ): ProjectsService[F] =
     new ProjectsService[F] {
-      override def create(meta: FileMeta[F]): F[AssetId] =
+      override def createProject(creation: ProjectCreation, createdBy: PersonId): F[ProjectId] =
         for {
-          id <- ID.make[F, AssetId]
+          projectId <- ID.make[F, ProjectId]
           now <- Calendar[F].currentZonedDateTime
-          key <- genFileKey(meta.fileName)
-          asset = Asset(
-            id = id,
+          project = Project(
+            id = projectId,
             createdAt = now,
-            s3Key = key,
-            fileName = meta.fileName.some,
-            contentType = meta.contentType,
+            createdBy = createdBy,
+            corporateId = creation.corporateId,
+            name = creation.name,
+            description = creation.description,
           )
-          _ <- meta.bytes.through(s3Client.putObject(key)).compile.drain
-          _ <- assetsRepository.create(asset)
-        } yield id
+          _ <- projectsRepository.create(project)
+        } yield projectId
 
-      private def getFileType(filename: String): String = {
-        val extension = filename.substring(filename.lastIndexOf('.') + 1)
-        extension.toLowerCase
-      }
+      override def getProjects(
+          corporateId: CorporateId,
+          limit: Int,
+          page: Int,
+        ): F[PaginatedResponse[Project]] =
+        projectsRepository.getAll(corporateId, limit, page)
 
-      private def genFileKey(orgFilename: String): F[String] =
-        GenUUID[F].make.map { uuid =>
-          uuid.toString + "." + getFileType(orgFilename)
+      override def getProjectById(projectId: ProjectId): F[Option[Project]] =
+        projectsRepository.findById(projectId)
+
+      override def updateProject(projectId: ProjectId, update: ProjectUpdate): F[Unit] =
+        projectsRepository.findById(projectId).flatMap {
+          case Some(project) =>
+            val updatedProject = project.copy(
+              name = update.name.getOrElse(project.name),
+              description = update.description.orElse(project.description),
+            )
+            projectsRepository.update(updatedProject)
+          case None =>
+            MonadThrow[F].raiseError(new RuntimeException(s"Project with id $projectId not found"))
         }
 
-      override def get(corporateId: CorporateId): F[List[Project]] = ???
+      override def deleteProject(projectId: ProjectId): F[Unit] =
+        projectsRepository.delete(projectId)
     }
 }
