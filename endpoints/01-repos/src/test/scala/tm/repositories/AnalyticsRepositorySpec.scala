@@ -168,7 +168,7 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
     for {
       _ <- repo.insertDashboardNotification(notification)
       result <- repo.getUnreadNotifications(userId)
-    } yield assert(result.exists(_.title == "Test Notification"))
+    } yield assert(result.exists(_.title.value == "Test Notification"))
   }
 
   test("markNotificationAsRead updates notification status") { implicit session =>
@@ -230,7 +230,7 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
     for {
       _ <- repo.insertProductivityInsight(insight)
       result <- repo.getProductivityInsights(userId)
-    } yield assert(result.exists(_.title == "Peak Performance Hours"))
+    } yield assert(result.exists(_.title.value == "Peak Performance Hours"))
   }
 
   test("getProductivityScore returns valid score") { implicit session =>

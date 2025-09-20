@@ -1,6 +1,7 @@
 package tm.repositories.sql
 
 import java.time.ZonedDateTime
+import java.util.UUID
 
 import skunk._
 import skunk.codec.all._
@@ -13,61 +14,78 @@ import tm.support.skunk.codecs._
 
 private[repositories] object NotificationsSql extends Sql[PersonId] {
 
-  // Simplified placeholder codecs to fix compilation
+  // Full notification codec with delivery methods as text (simplified)
   val notificationCodec: Codec[Notification] =
-    (uuid *: id *: nes *: text).imap { tuple =>
-      val notifId *: userId *: title *: content *: EmptyTuple = tuple
-      // Simplified placeholder notification
-      Notification(
-        id = NotificationId(notifId),
-        userId = userId,
-        title = title,
-        content = content,
-        notificationType = NotificationType.TaskDue,
-        relatedEntityId = None,
-        relatedEntityType = None,
-        isRead = false,
-        priority = NotificationPriority.Normal,
-        deliveryMethods = Set.empty,
-        metadata = Map.empty,
-        scheduledAt = None,
-        sentAt = None,
-        readAt = None,
-        expiresAt = None,
-        actionUrl = None,
-        actionLabel = None,
-        createdAt = java.time.ZonedDateTime.now(),
-        updatedAt = java.time.ZonedDateTime.now(),
-      )
-    } { notification =>
-      notification
-        .id
-        .value *: notification.userId *: notification.title *: notification.content *: EmptyTuple
-    }
+    (uuid *: id *: varchar(255) *: text *: text *: varchar(
+      255
+    ).opt *: text.opt *: bool *: text *: text *: zonedDateTime.opt *: zonedDateTime.opt *: zonedDateTime.opt *: zonedDateTime *: zonedDateTime)
+      .imap { tuple =>
+        val notifId *: userId *: title *: content *: notifType *: relatedEntityId *: relatedEntityType *: isRead *: priority *: deliveryMethodsStr *: scheduledAt *: sentAt *: readAt *: createdAt *: updatedAt *: EmptyTuple =
+          tuple
+        Notification(
+          id = NotificationId(notifId),
+          userId = userId,
+          title = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom(title),
+          content = content,
+          notificationType = NotificationType
+            .values
+            .find(_.entryName == notifType)
+            .getOrElse(NotificationType.TaskDue),
+          relatedEntityId = relatedEntityId,
+          relatedEntityType = relatedEntityType.map(_ => EntityType.Task), // TODO: parse from string
+          isRead = isRead,
+          priority = NotificationPriority
+            .values
+            .find(_.entryName == priority)
+            .getOrElse(NotificationPriority.Normal),
+          deliveryMethods = Set(DeliveryMethod.InApp, DeliveryMethod.Email), // Both methods for now
+          metadata = Map.empty, // TODO: parse from jsonb
+          scheduledAt = scheduledAt,
+          sentAt = sentAt,
+          readAt = readAt,
+          expiresAt = None, // TODO: add to query
+          actionUrl = None, // TODO: add to query
+          actionLabel = None, // TODO: add to query
+          createdAt = createdAt,
+          updatedAt = updatedAt,
+        )
+      } { notification =>
+        notification.id.value *: notification.userId *: notification
+          .title
+          .value *: notification.content *: "TaskDue" *: notification.relatedEntityId *: notification
+          .relatedEntityType
+          .map(
+            _.toString
+          ) *: notification.isRead *: "Normal" *: "InApp,Email" *: notification.scheduledAt *: notification.sentAt *: notification.readAt *: notification.createdAt *: notification.updatedAt *: EmptyTuple
+      }
 
-  // Simplified insert notification
+  // Insert notification with basic values
   val insertNotification: Command[Notification] =
-    sql"INSERT INTO notifications (id, user_id, title, content, notification_type, priority, delivery_methods) VALUES ($uuid, $id, $nes, $text, 'TaskDue'::notification_type, 'Normal'::notification_priority, ARRAY['InApp'::delivery_method])"
+    sql"INSERT INTO notifications (id, user_id, title, content, notification_type, priority, delivery_methods) VALUES ($uuid, $id, $nes, $text, $text::notification_type, $text::notification_priority, ARRAY[$text::delivery_method, $text::delivery_method])"
       .command
-      .contramap[Notification](n => n.id.value *: n.userId *: n.title *: n.content *: EmptyTuple)
+      .contramap[Notification](n =>
+        n.id.value *: n.userId *: n.title *: n.content *: n
+          .notificationType
+          .toString *: n.priority.toString *: "InApp" *: "Email" *: EmptyTuple
+      )
 
   // Find notification by ID
   val findNotificationById: Query[NotificationId, Notification] =
-    sql"SELECT $uuid, gen_random_uuid(), 'Title', 'Content'"
+    sql"SELECT id, user_id, title, content, notification_type::text, related_entity_id, related_entity_type::text, is_read, priority::text, array_to_string(delivery_methods, ','), scheduled_at, sent_at, read_at, created_at, updated_at FROM notifications WHERE id = $uuid"
       .query(notificationCodec)
       .contramap[NotificationId](_.value)
 
   // Find notifications by user with filters
   val findNotificationsByUser: Query[(PersonId, Int, Int), Notification] =
-    sql"SELECT gen_random_uuid(), $id, 'Title', 'Content' WHERE $id IS NOT NULL LIMIT $int4 OFFSET $int4"
+    sql"SELECT id, user_id, title, content, notification_type::text, related_entity_id, related_entity_type::text, is_read, priority::text, array_to_string(delivery_methods, ','), scheduled_at, sent_at, read_at, created_at, updated_at FROM notifications WHERE user_id = $id ORDER BY created_at DESC LIMIT $int4 OFFSET $int4"
       .query(notificationCodec)
       .contramap[(PersonId, Int, Int)] {
-        case (userId, limit, offset) => userId *: userId *: limit *: offset *: EmptyTuple
+        case (userId, limit, offset) => userId *: limit *: offset *: EmptyTuple
       }
 
   // Mark notification as read
   val markNotificationAsRead: Command[(NotificationId, PersonId)] =
-    sql"UPDATE notifications SET is_read = true WHERE id = $uuid AND user_id = $id"
+    sql"UPDATE notifications SET is_read = true, read_at = NOW(), updated_at = NOW() WHERE id = $uuid AND user_id = $id"
       .command
       .contramap[(NotificationId, PersonId)] {
         case (notifId, userId) => notifId.value *: userId *: EmptyTuple
@@ -83,7 +101,9 @@ private[repositories] object NotificationsSql extends Sql[PersonId] {
 
   // Count unread notifications
   val countUnreadNotifications: Query[PersonId, Long] =
-    sql"SELECT 0 WHERE $id IS NOT NULL".query(int8)
+    sql"SELECT COUNT(*)::int8 FROM notifications WHERE user_id = $id AND is_read = false".query(
+      int8
+    )
 
   // Get notification statistics
   val getNotificationStatistics: Query[(PersonId, String), (String, Long)] =
@@ -125,10 +145,16 @@ private[repositories] object NotificationsSql extends Sql[PersonId] {
 
   // Additional missing methods required by NotificationsRepository
   def getUserNotifications(filters: NotificationFilters): Query[PersonId, Notification] =
-    sql"SELECT gen_random_uuid(), $id, 'Title', 'Content'".query(notificationCodec)
+    sql"SELECT id, user_id, title, content, notification_type::text, related_entity_id, related_entity_type::text, is_read, priority::text, array_to_string(delivery_methods, ','), scheduled_at, sent_at, read_at, created_at, updated_at FROM notifications WHERE user_id = $id ORDER BY created_at DESC LIMIT ${int4} OFFSET ${int4}"
+      .query(notificationCodec)
+      .contramap[PersonId](userId =>
+        userId *: filters.limit.getOrElse(20) *: filters.offset.getOrElse(0) *: EmptyTuple
+      )
 
   val getUnreadCount: Query[PersonId, Long] =
-    sql"SELECT 0 WHERE $id IS NOT NULL".query(int8)
+    sql"SELECT COUNT(*)::int8 FROM notifications WHERE user_id = $id AND is_read = false".query(
+      int8
+    )
 
   val markAsRead: Command[(NotificationId, PersonId)] =
     markNotificationAsRead
@@ -146,9 +172,11 @@ private[repositories] object NotificationsSql extends Sql[PersonId] {
       .contramap[NotificationId](_.value)
 
   val getNotificationSettings: Query[PersonId, NotificationSettings] =
-    sql"SELECT gen_random_uuid(), $id, true, true, true, true, true, true, true, true, true, true, true, NULL, 'UTC', NOW(), NOW()"
+    sql"SELECT id, user_id, email_notifications, push_notifications, sms_notifications, telegram_notifications, task_assignments, task_reminders, project_updates, team_updates, daily_digest, weekly_report, productivity_insights, quiet_hours_start, timezone, created_at, updated_at FROM notification_settings WHERE user_id = $id"
       .query(
-        uuid *: id *: bool *: bool *: bool *: bool *: bool *: bool *: bool *: bool *: bool *: bool *: bool *: text.opt *: text *: zonedDateTime *: zonedDateTime
+        uuid *: id *: bool *: bool *: bool *: bool *: bool *: bool *: bool *: bool *: bool *: bool *: bool *: time.opt *: varchar(
+          50
+        ) *: zonedDateTime *: zonedDateTime
       )
       .map { tuple =>
         val settingsId *: userId *: emailNotifs *: pushNotifs *: smsNotifs *: telegramNotifs *: taskAssignments *: taskReminders *: projectUpdates *: teamUpdates *: dailyDigest *: weeklyReport *: productivityInsights *: _ *: timeZone *: createdAt *: updatedAt *: _ =
@@ -175,9 +203,28 @@ private[repositories] object NotificationsSql extends Sql[PersonId] {
       }
 
   val upsertNotificationSettings: Command[NotificationSettings] =
-    sql"INSERT INTO notification_settings (id, user_id, email_notifications, push_notifications) VALUES ($uuid, $id, true, true) ON CONFLICT (user_id) DO NOTHING"
+    sql"""INSERT INTO notification_settings (id, user_id, email_notifications, push_notifications, sms_notifications, telegram_notifications, 
+           task_assignments, task_reminders, project_updates, team_updates, daily_digest, weekly_report, productivity_insights, timezone)
+           VALUES ($uuid, $id, $bool, $bool, $bool, $bool, $bool, $bool, $bool, $bool, $bool, $bool, $bool, $text)
+           ON CONFLICT (user_id) DO UPDATE SET
+           email_notifications = EXCLUDED.email_notifications,
+           push_notifications = EXCLUDED.push_notifications,
+           sms_notifications = EXCLUDED.sms_notifications,
+           telegram_notifications = EXCLUDED.telegram_notifications,
+           task_assignments = EXCLUDED.task_assignments,
+           task_reminders = EXCLUDED.task_reminders,
+           project_updates = EXCLUDED.project_updates,
+           team_updates = EXCLUDED.team_updates,
+           daily_digest = EXCLUDED.daily_digest,
+           weekly_report = EXCLUDED.weekly_report,
+           productivity_insights = EXCLUDED.productivity_insights,
+           timezone = EXCLUDED.timezone,
+           updated_at = NOW()"""
       .command
-      .contramap[NotificationSettings](s => s.id.value *: s.userId *: EmptyTuple)
+      .contramap[NotificationSettings](s =>
+        s.id
+          .value *: s.userId *: s.emailNotifications *: s.pushNotifications *: s.smsNotifications *: s.telegramNotifications *: s.taskAssignments *: s.taskReminders *: s.projectUpdates *: s.teamUpdates *: s.dailyDigest *: s.weeklyReport *: s.productivityInsights *: s.timeZone *: EmptyTuple
+      )
 
   val getNotificationTemplates: Query[skunk.Void, NotificationTemplate] =
     sql"SELECT gen_random_uuid(), 'Template Name', 1, 'Title Template', 'Content Template', true, NOW(), NOW()"
@@ -231,25 +278,27 @@ private[repositories] object NotificationsSql extends Sql[PersonId] {
       .command
       .contramap[NotificationDeliveryLog](log => log.id *: log.notificationId.value *: EmptyTuple)
 
-  val updateDeliveryLogStatus: Command[(NotificationId, String, Option[String])] =
-    sql"UPDATE notification_delivery_log SET status = 'Delivered' WHERE notification_id = $uuid"
+  val updateDeliveryLogStatus: Command[(UUID, String, Int, Option[String], Option[ZonedDateTime])] =
+    sql"UPDATE notification_delivery_log SET status = $text::delivery_status, attempts = $int4, error_message = ${text.opt}, delivered_at = ${zonedDateTime.opt} WHERE id = $uuid"
       .command
-      .contramap[(NotificationId, String, Option[String])] {
-        case (notifId, _, _) => notifId.value
+      .contramap[(UUID, String, Int, Option[String], Option[ZonedDateTime])] {
+        case (logId, status, attempts, errorMsg, deliveredAt) =>
+          status *: attempts *: errorMsg *: deliveredAt *: logId *: EmptyTuple
       }
 
   val getFailedDeliveries: Query[Int, NotificationDeliveryLog] =
-    sql"SELECT gen_random_uuid(), gen_random_uuid(), 1, 1, 0, NULL, NULL, NOW() WHERE $int4 > 0"
+    sql"SELECT id, notification_id, delivery_method::text, status::text, attempts, error_message, delivered_at, created_at FROM notification_delivery_log WHERE status = 'Failed' AND attempts <= $int4 ORDER BY created_at DESC"
       .query(
-        uuid *: uuid *: int4 *: int4 *: int4 *: text.opt *: zonedDateTime.opt *: zonedDateTime
+        uuid *: uuid *: text *: text *: int4 *: text.opt *: zonedDateTime.opt *: zonedDateTime
       )
       .map { tuple =>
-        val logId *: notifId *: _ *: _ *: attempts *: error *: deliveredAt *: createdAt *: _ = tuple
+        val logId *: notifId *: deliveryMethod *: status *: attempts *: error *: deliveredAt *: createdAt *: _ =
+          tuple
         NotificationDeliveryLog(
           id = logId,
           notificationId = NotificationId(notifId),
-          deliveryMethod = DeliveryMethod.InApp, // placeholder
-          status = DeliveryStatus.Failed, // placeholder
+          deliveryMethod = DeliveryMethod.InApp, // TODO: parse from string
+          status = DeliveryStatus.Failed, // TODO: parse from string
           attempts = attempts,
           errorMessage = error,
           deliveredAt = deliveredAt,
@@ -258,7 +307,12 @@ private[repositories] object NotificationsSql extends Sql[PersonId] {
       }
 
   val getNotificationStats: Query[PersonId, (Long, Long, Long, Long)] =
-    sql"SELECT 0, 0, 0, 0 WHERE $id IS NOT NULL"
+    sql"""SELECT 
+           COUNT(*)::int8 as total_count,
+           COUNT(*) FILTER (WHERE is_read = false)::int8 as unread_count,
+           COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int8 as today_count,
+           COUNT(*) FILTER (WHERE created_at >= DATE_TRUNC('week', CURRENT_DATE))::int8 as week_count
+           FROM notifications WHERE user_id = $id"""
       .query(int8 *: int8 *: int8 *: int8)
       .map { case total *: unread *: today *: week *: _ => (total, unread, today, week) }
 
@@ -271,9 +325,11 @@ private[repositories] object NotificationsSql extends Sql[PersonId] {
     sql"DELETE FROM notifications WHERE expires_at < NOW()".command
 
   val searchNotifications: Query[(PersonId, String), Notification] =
-    sql"SELECT gen_random_uuid(), $id, 'Title', 'Content' WHERE 1=1"
+    sql"SELECT id, user_id, title, content, notification_type::text, related_entity_id, related_entity_type::text, is_read, priority::text, array_to_string(delivery_methods, ','), scheduled_at, sent_at, read_at, created_at, updated_at FROM notifications WHERE user_id = $id AND (title ILIKE '%' || $text || '%' OR content ILIKE '%' || $text || '%')"
       .query(notificationCodec)
-      .contramap[(PersonId, String)] { case (userId, _) => userId }
+      .contramap[(PersonId, String)] {
+        case (userId, searchTerm) => userId *: searchTerm *: searchTerm *: EmptyTuple
+      }
 
   val getNotificationsForEntity: Query[(String, String), Notification] =
     sql"SELECT gen_random_uuid(), gen_random_uuid(), 'Title', 'Content' WHERE 1=1"

@@ -15,22 +15,22 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
 
   // Daily Productivity Stats Codec
   val dailyProductivityStatsCodec: Codec[DailyProductivityData] =
-    (id *: date *: int4 *: int4 *: int4 *: int4 *: int4 *: zonedDateTime.opt *: zonedDateTime.opt *: numeric.opt *: nes.opt)
+    (id *: date *: int8 *: int8 *: int8 *: int8 *: int8 *: zonedDateTime.opt *: zonedDateTime.opt *: numeric.opt *: text.opt)
       .imap { tuple =>
         val userId *: reportDate *: productiveMinutes *: breakMinutes *: tasksWorked *: totalMinutes *: sessionCount *: firstActivity *: lastActivity *: efficiency *: workMode *: _ =
           tuple
         DailyProductivityData(
           userId,
           reportDate,
-          productiveMinutes,
-          breakMinutes,
-          tasksWorked,
-          totalMinutes,
-          sessionCount,
+          productiveMinutes.toInt,
+          breakMinutes.toInt,
+          tasksWorked.toInt,
+          totalMinutes.toInt,
+          sessionCount.toInt,
           firstActivity,
           lastActivity,
           efficiency,
-          workMode,
+          workMode.map(eu.timepit.refined.types.string.NonEmptyString.unsafeFrom),
         )
       } {
         case DailyProductivityData(
@@ -46,7 +46,8 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
                efficiency,
                workMode,
              ) =>
-          userId *: reportDate *: productiveMinutes *: breakMinutes *: tasksWorked *: totalMinutes *: sessionCount *: firstActivity *: lastActivity *: efficiency *: workMode *: EmptyTuple
+          userId *: reportDate *: productiveMinutes.toLong *: breakMinutes.toLong *: tasksWorked.toLong *: totalMinutes.toLong *: sessionCount.toLong *: firstActivity *: lastActivity *: efficiency *: workMode
+            .map(_.value) *: EmptyTuple
       }
 
   // Get today's stats for a user
@@ -104,7 +105,7 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
       INSERT INTO user_goals (id, user_id, daily_hours_goal, weekly_hours_goal, monthly_tasks_goal,
                               productivity_goal, streak_goal, created_at, updated_at)
       VALUES (${uuid}, ${id}, ${numeric}, ${numeric}, ${int4}, ${numeric}, ${int4}, ${zonedDateTime}, ${zonedDateTime})
-      ON CONFLICT (user_id) WHERE deleted_at IS NULL
+      ON CONFLICT (user_id)
       DO UPDATE SET
         daily_hours_goal = EXCLUDED.daily_hours_goal,
         weekly_hours_goal = EXCLUDED.weekly_hours_goal,
@@ -132,11 +133,18 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
       ORDER BY last_worked DESC NULLS LAST
       LIMIT $int4
     """
-      .query(uuid *: nes *: nes *: nes *: int4 *: zonedDateTime.opt)
+      .query(uuid *: nes *: nes *: text *: int8 *: zonedDateTime.opt)
       .contramap[(PersonId, Int)] { case (userId, limit) => userId *: limit *: EmptyTuple }
       .map { tuple =>
         val taskId *: name *: projectName *: status *: timeSpent *: lastWorked *: _ = tuple
-        RecentTaskData(taskId, name, projectName, status, timeSpent, lastWorked)
+        RecentTaskData(
+          taskId,
+          name,
+          projectName,
+          eu.timepit.refined.types.string.NonEmptyString.unsafeFrom(status),
+          timeSpent.toInt,
+          lastWorked,
+        )
       }
 
   // Get current work session
@@ -145,12 +153,12 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
       SELECT id, user_id, start_time, end_time, work_mode::text, is_running,
              total_minutes, break_minutes, productive_minutes, description, location::text, created_at
       FROM enhanced_work_sessions
-      WHERE user_id = $id AND is_running = true AND deleted_at IS NULL
+      WHERE user_id = $id AND is_running = true
       ORDER BY start_time DESC
       LIMIT 1
     """
       .query(
-        uuid *: id *: zonedDateTime *: zonedDateTime.opt *: nes *: bool *: int4 *: int4 *: int4 *: text.opt *: nes.opt *: zonedDateTime
+        uuid *: id *: zonedDateTime *: zonedDateTime.opt *: text *: bool *: int4 *: int4 *: int4 *: text.opt *: text.opt *: zonedDateTime
       )
       .map { tuple =>
         val sessionId *: userId *: startTime *: endTime *: workMode *: isRunning *: totalMinutes *: breakMinutes *: productiveMinutes *: description *: location *: createdAt *: _ =
@@ -160,13 +168,13 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
           userId,
           startTime,
           endTime,
-          workMode,
+          eu.timepit.refined.types.string.NonEmptyString.unsafeFrom(workMode),
           isRunning,
           totalMinutes,
           breakMinutes,
           productiveMinutes,
           description,
-          location,
+          location.map(eu.timepit.refined.types.string.NonEmptyString.unsafeFrom),
           createdAt,
         )
       }
@@ -181,7 +189,7 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
       ORDER BY start_time DESC
     """
       .query(
-        uuid *: id *: uuid.opt *: uuid.opt *: zonedDateTime *: zonedDateTime.opt *: int4.opt *: text *: bool *: bool *: nes.opt *: bool *: zonedDateTime *: zonedDateTime
+        uuid *: id *: uuid.opt *: uuid.opt *: zonedDateTime *: zonedDateTime.opt *: int4.opt *: text *: bool *: bool *: text.opt *: bool *: zonedDateTime *: zonedDateTime
       )
       .map { tuple =>
         val entryId *: userId *: taskId *: workSessionId *: startTime *: endTime *: duration *: description *: isRunning *: isBreak *: breakReason *: isManual *: createdAt *: updatedAt *: _ =
@@ -197,7 +205,7 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
           description,
           isRunning,
           isBreak,
-          breakReason,
+          breakReason.map(eu.timepit.refined.types.string.NonEmptyString.unsafeFrom),
           isManual,
           createdAt,
           updatedAt,
@@ -208,8 +216,8 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
   val getProductivityScore: Query[PersonId, Double] =
     sql"""
       SELECT CASE
-               WHEN SUM(total_minutes) > 0
-               THEN ROUND(SUM(productive_minutes) * 100.0 / SUM(total_minutes), 2)
+               WHEN SUM(duration) > 0
+               THEN ROUND(SUM(CASE WHEN NOT is_break THEN duration ELSE 0 END) * 100.0 / SUM(duration), 2)
                ELSE 0
              END as productivity_score
       FROM time_entries
@@ -218,7 +226,7 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
 
   // Simple placeholder queries for other methods to compile
   val getWeekStats: Query[(PersonId, LocalDate), WeeklyProductivityData] =
-    sql"SELECT $id, $date, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0"
+    sql"SELECT $id, $date, 0::numeric, 0::numeric, 0::numeric, 0, 0::numeric, 0::numeric, 0, 0::numeric, 0::numeric, 0"
       .query(
         id *: date *: numeric *: numeric *: numeric *: int4 *: numeric *: numeric *: int4 *: numeric *: numeric *: int4
       )
@@ -245,9 +253,11 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
       }
 
   val getUnreadNotifications: Query[PersonId, DashboardNotificationData] =
-    sql"SELECT gen_random_uuid(), $id, 'Title', 'Message', 'info', 'medium', false, NULL, NOW(), NULL"
+    sql"SELECT id, user_id, title, message, notification_type, priority, is_read, action_url, created_at, NULL::timestamptz as valid_until FROM dashboard_notifications WHERE user_id = $id AND is_read = false ORDER BY created_at DESC"
       .query(
-        uuid *: id *: nes *: text *: nes *: nes *: bool *: nes.opt *: zonedDateTime *: zonedDateTime.opt
+        uuid *: id *: varchar(255) *: text *: varchar(50) *: varchar(20) *: bool *: varchar(
+          500
+        ).opt *: zonedDateTime *: zonedDateTime.opt
       )
       .map { tuple =>
         val notifId *: userId *: title *: message *: notifType *: priority *: isRead *: actionUrl *: createdAt *: validUntil *: _ =
@@ -255,21 +265,23 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
         DashboardNotificationData(
           notifId,
           userId,
-          title,
+          eu.timepit.refined.types.string.NonEmptyString.unsafeFrom(title),
           message,
-          notifType,
-          priority,
+          eu.timepit.refined.types.string.NonEmptyString.unsafeFrom(notifType),
+          eu.timepit.refined.types.string.NonEmptyString.unsafeFrom(priority),
           isRead,
-          actionUrl,
+          actionUrl.map(eu.timepit.refined.types.string.NonEmptyString.unsafeFrom),
           createdAt,
           validUntil,
         )
       }
 
   val getProductivityInsights: Query[PersonId, ProductivityInsightData] =
-    sql"SELECT gen_random_uuid(), $id, 'productivity', 'Insight', 'Description', true, 'medium', '{}', NULL, false, NOW()"
+    sql"SELECT id, user_id, category, title, description, actionable, priority, metadata::text, valid_until, is_read, created_at FROM productivity_insights WHERE user_id = $id ORDER BY created_at DESC"
       .query(
-        uuid *: id *: nes *: nes *: text *: bool *: nes *: text *: zonedDateTime.opt *: bool *: zonedDateTime
+        uuid *: id *: varchar(50) *: varchar(255) *: text *: bool *: varchar(
+          20
+        ) *: text *: zonedDateTime.opt *: bool *: zonedDateTime
       )
       .map { tuple =>
         val insightId *: userId *: category *: title *: description *: actionable *: priority *: metadata *: validUntil *: isRead *: createdAt *: _ =
@@ -277,11 +289,11 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
         ProductivityInsightData(
           insightId,
           userId,
-          category,
-          title,
+          eu.timepit.refined.types.string.NonEmptyString.unsafeFrom(category),
+          eu.timepit.refined.types.string.NonEmptyString.unsafeFrom(title),
           description,
           actionable,
-          priority,
+          eu.timepit.refined.types.string.NonEmptyString.unsafeFrom(priority),
           metadata,
           validUntil,
           isRead,
@@ -291,14 +303,22 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
 
   // Placeholder commands
   val insertProductivityInsight: Command[ProductivityInsightData] =
-    sql"INSERT INTO productivity_insights (id, user_id) VALUES (${uuid}, ${id})"
+    sql"INSERT INTO productivity_insights (id, user_id, category, title, description, actionable, priority, metadata, valid_until, is_read, created_at) VALUES ($uuid, $id, $nes, $nes, $text, $bool, $nes, $text::jsonb, $zonedDateTime, $bool, $zonedDateTime)"
       .command
-      .contramap[ProductivityInsightData](insight => insight.id *: insight.userId *: EmptyTuple)
+      .contramap[ProductivityInsightData](insight =>
+        insight.id *: insight.userId *: insight.category *: insight.title *: insight.description *: insight.actionable *: insight.priority *: insight.metadata *: insight
+          .validUntil
+          .getOrElse(
+            java.time.ZonedDateTime.now()
+          ) *: insight.isRead *: insight.createdAt *: EmptyTuple
+      )
 
   val insertDashboardNotification: Command[DashboardNotificationData] =
-    sql"INSERT INTO dashboard_notifications (id, user_id) VALUES (${uuid}, ${id})"
+    sql"INSERT INTO dashboard_notifications (id, user_id, title, message, notification_type, priority, is_read, action_url, created_at) VALUES ($uuid, $id, $nes, $text, $nes, $nes, $bool, ${nes.opt}, $zonedDateTime)"
       .command
-      .contramap[DashboardNotificationData](notif => notif.id *: notif.userId *: EmptyTuple)
+      .contramap[DashboardNotificationData](notif =>
+        notif.id *: notif.userId *: notif.title *: notif.message *: notif.notificationType *: notif.priority *: notif.isRead *: notif.actionUrl *: notif.createdAt *: EmptyTuple
+      )
 
   val markNotificationAsRead: Command[(java.util.UUID, PersonId)] =
     sql"UPDATE dashboard_notifications SET is_read = true WHERE id = $uuid AND user_id = $id"
@@ -315,11 +335,11 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
       }
 
   val refreshMaterializedViews: Command[skunk.Void] =
-    sql"SELECT 1".command
+    sql"UPDATE users SET updated_at = NOW() WHERE id IS NOT NULL AND false".command
 
   // Placeholder implementations for other complex queries
   val getUserProductivityRanking: Query[PersonId, UserProductivityRankingData] =
-    sql"SELECT $id, 'First', 'Last', gen_random_uuid(), 0, 0, 0, 0, 1, 0, 0, 0, 'office'"
+    sql"SELECT $id, 'First'::varchar, 'Last'::varchar, gen_random_uuid(), 0, 0, 0, 0::numeric, 1, 0::numeric, 0::int8, 0::int8, 'office'::varchar"
       .query(
         id *: nes *: nes *: uuid *: int4 *: int4 *: int4 *: numeric *: int4 *: numeric *: int8 *: int8 *: nes
       )

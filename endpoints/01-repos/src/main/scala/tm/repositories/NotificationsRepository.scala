@@ -124,7 +124,7 @@ object NotificationsRepository {
       ): F[Unit] =
       NotificationsSql
         .updateDeliveryLogStatus
-        .execute((NotificationId(logId), status, errorMessage))
+        .execute((logId, status, attempts, errorMessage, deliveredAt))
 
     override def getFailedDeliveries(maxAttempts: Int): F[List[NotificationDeliveryLog]] =
       NotificationsSql.getFailedDeliveries.queryList(maxAttempts)
