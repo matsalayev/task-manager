@@ -4,20 +4,23 @@ import java.time.ZonedDateTime
 import java.util.UUID
 
 import cats.effect.IO
+import cats.effect.Resource
+import cats.implicits._
+import skunk.Session
 import weaver._
 
+import tm.database.DBSuite
 import tm.domain.PersonId
 import tm.domain.notifications._
-import tm.support.database.DatabaseResource
-import tm.support.database.DatabaseSuite
 import tm.utils.ID
 
-object NotificationsRepositorySpec extends DatabaseSuite {
-  override type Res = DatabaseResource[IO]
+object NotificationsRepositorySpec extends DBSuite {
+  override def schemaName: String = "public"
+  override def beforeAll(implicit session: Resource[IO, Session[IO]]): IO[Unit] = IO.unit
 
-  test("create and find notification") { res =>
+  test("create and find notification") { implicit session =>
     for {
-      repo <- IO(NotificationsRepository.make[IO](res.database))
+      repo <- IO(NotificationsRepository.make[IO])
 
       // Create test data
       notificationId <- ID.make[IO, NotificationId]
@@ -30,7 +33,7 @@ object NotificationsRepositorySpec extends DatabaseSuite {
         content = "This is a test notification content",
         notificationType = NotificationType.TaskAssigned,
         relatedEntityId = Some("task-123"),
-        relatedEntityType = Some("Task"),
+        relatedEntityType = Some(EntityType.Task),
         isRead = false,
         priority = NotificationPriority.Normal,
         deliveryMethods = Set(DeliveryMethod.InApp, DeliveryMethod.Email),
@@ -61,9 +64,9 @@ object NotificationsRepositorySpec extends DatabaseSuite {
       expect(found.get.deliveryMethods.contains(DeliveryMethod.Email))
   }
 
-  test("get user notifications with filters") { res =>
+  test("get user notifications with filters") { implicit session =>
     for {
-      repo <- IO(NotificationsRepository.make[IO](res.database))
+      repo <- IO(NotificationsRepository.make[IO])
 
       userId = PersonId(UUID.randomUUID())
 
@@ -79,19 +82,19 @@ object NotificationsRepositorySpec extends DatabaseSuite {
             notificationType =
               if (i % 2 == 0) NotificationType.TaskAssigned else NotificationType.ProjectUpdate,
             relatedEntityId = Some(s"entity-$i"),
-            relatedEntityType = Some("Task"),
+            relatedEntityType = Some(EntityType.Task),
             isRead = i <= 2, // First 2 are read
             priority = if (i == 1) NotificationPriority.High else NotificationPriority.Normal,
             deliveryMethods = Set(DeliveryMethod.InApp),
             metadata = Map.empty,
             scheduledAt = None,
-            sentAt = Some(ZonedDateTime.now().minusHours(i)),
-            readAt = if (i <= 2) Some(ZonedDateTime.now().minusMinutes(i * 10)) else None,
+            sentAt = Some(ZonedDateTime.now().minusHours(i.toLong)),
+            readAt = if (i <= 2) Some(ZonedDateTime.now().minusMinutes((i * 10).toLong)) else None,
             expiresAt = None,
             actionUrl = None,
             actionLabel = None,
-            createdAt = ZonedDateTime.now().minusHours(i),
-            updatedAt = ZonedDateTime.now().minusHours(i),
+            createdAt = ZonedDateTime.now().minusHours(i.toLong),
+            updatedAt = ZonedDateTime.now().minusHours(i.toLong),
           )
           _ <- repo.createNotification(notification)
         } yield notification
@@ -131,9 +134,9 @@ object NotificationsRepositorySpec extends DatabaseSuite {
       expect(unreadCount == 3)
   }
 
-  test("mark notifications as read") { res =>
+  test("mark notifications as read") { implicit session =>
     for {
-      repo <- IO(NotificationsRepository.make[IO](res.database))
+      repo <- IO(NotificationsRepository.make[IO])
 
       userId = PersonId(UUID.randomUUID())
       notificationId <- ID.make[IO, NotificationId]
@@ -178,9 +181,9 @@ object NotificationsRepositorySpec extends DatabaseSuite {
       expect(found.get.readAt.isDefined)
   }
 
-  test("notification settings CRUD") { res =>
+  test("notification settings CRUD") { implicit session =>
     for {
-      repo <- IO(NotificationsRepository.make[IO](res.database))
+      repo <- IO(NotificationsRepository.make[IO])
 
       userId = PersonId(UUID.randomUUID())
       settingsId <- ID.make[IO, NotificationId]
@@ -203,6 +206,8 @@ object NotificationsRepositorySpec extends DatabaseSuite {
           QuietHours(
             startTime = java.time.LocalTime.of(22, 0),
             endTime = java.time.LocalTime.of(8, 0),
+            timeZone = "America/New_York",
+            weekendsOnly = false,
             enabled = true,
           )
         ),
@@ -238,9 +243,9 @@ object NotificationsRepositorySpec extends DatabaseSuite {
       expect(foundUpdated.get.timeZone == "Europe/London")
   }
 
-  test("delivery logs") { res =>
+  test("delivery logs") { implicit session =>
     for {
-      repo <- IO(NotificationsRepository.make[IO](res.database))
+      repo <- IO(NotificationsRepository.make[IO])
 
       notificationId <- ID.make[IO, NotificationId]
       logId = UUID.randomUUID()
@@ -277,9 +282,9 @@ object NotificationsRepositorySpec extends DatabaseSuite {
       expect(failedDeliveries.head.errorMessage.contains("SMTP connection failed"))
   }
 
-  test("search notifications") { res =>
+  test("search notifications") { implicit session =>
     for {
-      repo <- IO(NotificationsRepository.make[IO](res.database))
+      repo <- IO(NotificationsRepository.make[IO])
 
       userId = PersonId(UUID.randomUUID())
 
@@ -334,9 +339,9 @@ object NotificationsRepositorySpec extends DatabaseSuite {
       expect(databaseResults.head.content.contains("Database"))
   }
 
-  test("notification statistics") { res =>
+  test("notification statistics") { implicit session =>
     for {
-      repo <- IO(NotificationsRepository.make[IO](res.database))
+      repo <- IO(NotificationsRepository.make[IO])
 
       userId = PersonId(UUID.randomUUID())
 
@@ -358,14 +363,15 @@ object NotificationsRepositorySpec extends DatabaseSuite {
             deliveryMethods = Set(DeliveryMethod.InApp),
             metadata = Map.empty,
             scheduledAt = None,
-            sentAt = Some(ZonedDateTime.now().minusHours(i)),
-            readAt = if (i <= 3) Some(ZonedDateTime.now().minusMinutes(i * 5)) else None,
+            sentAt = Some(ZonedDateTime.now().minusHours(i.toLong)),
+            readAt = if (i <= 3) Some(ZonedDateTime.now().minusMinutes((i * 5).toLong)) else None,
             expiresAt = None,
             actionUrl = None,
             actionLabel = None,
             createdAt =
-              if (i <= 5) ZonedDateTime.now().minusHours(i) else ZonedDateTime.now().minusDays(i), // Some from today, some older
-            updatedAt = ZonedDateTime.now().minusHours(i),
+              if (i <= 5) ZonedDateTime.now().minusHours(i.toLong)
+              else ZonedDateTime.now().minusDays(i.toLong), // Some from today, some older
+            updatedAt = ZonedDateTime.now().minusHours(i.toLong),
           )
           _ <- repo.createNotification(notification)
         } yield ()

@@ -19,7 +19,7 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("getTodayStats returns productivity data for user") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
 
     for {
       result <- repo.getTodayStats(userId)
@@ -28,19 +28,23 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("getUserGoals returns user goals when they exist") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
 
-    val testGoals = UserGoalsData(
-      id = java.util.UUID.randomUUID(),
-      userId = userId,
-      dailyHoursGoal = 8.0,
-      weeklyHoursGoal = 40.0,
-      monthlyTasksGoal = 20,
-      productivityGoal = 80.0,
-      streakGoal = 5,
-      createdAt = ZonedDateTime.now(),
-      updatedAt = ZonedDateTime.now(),
-    )
+    val testGoals = tm
+      .repositories
+      .sql
+      .AnalyticsData
+      .UserGoalsData(
+        id = java.util.UUID.randomUUID(),
+        userId = userId,
+        dailyHoursGoal = BigDecimal(8.0),
+        weeklyHoursGoal = BigDecimal(40.0),
+        monthlyTasksGoal = 20,
+        productivityGoal = BigDecimal(80.0),
+        streakGoal = 5,
+        createdAt = ZonedDateTime.now(),
+        updatedAt = ZonedDateTime.now(),
+      )
 
     for {
       _ <- repo.upsertUserGoals(testGoals)
@@ -54,19 +58,23 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("upsertUserGoals creates new goals") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user2.id
+    val userId = data.people.person2.id
 
-    val newGoals = UserGoalsData(
-      id = java.util.UUID.randomUUID(),
-      userId = userId,
-      dailyHoursGoal = 6.0,
-      weeklyHoursGoal = 30.0,
-      monthlyTasksGoal = 15,
-      productivityGoal = 75.0,
-      streakGoal = 3,
-      createdAt = ZonedDateTime.now(),
-      updatedAt = ZonedDateTime.now(),
-    )
+    val newGoals = tm
+      .repositories
+      .sql
+      .AnalyticsData
+      .UserGoalsData(
+        id = java.util.UUID.randomUUID(),
+        userId = userId,
+        dailyHoursGoal = BigDecimal(6.0),
+        weeklyHoursGoal = BigDecimal(30.0),
+        monthlyTasksGoal = 15,
+        productivityGoal = BigDecimal(75.0),
+        streakGoal = 3,
+        createdAt = ZonedDateTime.now(),
+        updatedAt = ZonedDateTime.now(),
+      )
 
     for {
       _ <- repo.upsertUserGoals(newGoals)
@@ -80,23 +88,27 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("upsertUserGoals updates existing goals") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
 
-    val initialGoals = UserGoalsData(
-      id = java.util.UUID.randomUUID(),
-      userId = userId,
-      dailyHoursGoal = 8.0,
-      weeklyHoursGoal = 40.0,
-      monthlyTasksGoal = 20,
-      productivityGoal = 80.0,
-      streakGoal = 5,
-      createdAt = ZonedDateTime.now(),
-      updatedAt = ZonedDateTime.now(),
-    )
+    val initialGoals = tm
+      .repositories
+      .sql
+      .AnalyticsData
+      .UserGoalsData(
+        id = java.util.UUID.randomUUID(),
+        userId = userId,
+        dailyHoursGoal = BigDecimal(8.0),
+        weeklyHoursGoal = BigDecimal(40.0),
+        monthlyTasksGoal = 20,
+        productivityGoal = BigDecimal(80.0),
+        streakGoal = 5,
+        createdAt = ZonedDateTime.now(),
+        updatedAt = ZonedDateTime.now(),
+      )
 
     val updatedGoals = initialGoals.copy(
-      dailyHoursGoal = 9.0,
-      weeklyHoursGoal = 45.0,
+      dailyHoursGoal = BigDecimal(9.0),
+      weeklyHoursGoal = BigDecimal(45.0),
       updatedAt = ZonedDateTime.now(),
     )
 
@@ -113,7 +125,7 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("getRecentTasks returns task data with time tracking") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
 
     for {
       result <- repo.getRecentTasks(userId, 5)
@@ -122,29 +134,36 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("getUnreadNotifications returns notification list") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
 
     for {
       result <- repo.getUnreadNotifications(userId)
-    } yield assert(result.isInstanceOf[List[DashboardNotificationData]])
+    } yield assert(
+      result.isInstanceOf[List[tm.repositories.sql.AnalyticsData.DashboardNotificationData]]
+    )
   }
 
   test("insertDashboardNotification creates notification") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
 
-    val notification = DashboardNotificationData(
-      id = java.util.UUID.randomUUID(),
-      userId = userId,
-      title = "Test Notification",
-      message = "This is a test notification",
-      notificationType = "ProductivityAlert",
-      priority = "Medium",
-      isRead = false,
-      actionUrl = Some("/dashboard"),
-      createdAt = ZonedDateTime.now(),
-      readAt = None,
-    )
+    val notification = tm
+      .repositories
+      .sql
+      .AnalyticsData
+      .DashboardNotificationData(
+        id = java.util.UUID.randomUUID(),
+        userId = userId,
+        title = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("Test Notification"),
+        message = "This is a test notification",
+        notificationType =
+          eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("ProductivityAlert"),
+        priority = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("Medium"),
+        isRead = false,
+        actionUrl = Some(eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("/dashboard")),
+        createdAt = ZonedDateTime.now(),
+        validUntil = None,
+      )
 
     for {
       _ <- repo.insertDashboardNotification(notification)
@@ -154,21 +173,26 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("markNotificationAsRead updates notification status") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
     val notificationId = java.util.UUID.randomUUID()
 
-    val notification = DashboardNotificationData(
-      id = notificationId,
-      userId = userId,
-      title = "Test Read Notification",
-      message = "This notification will be marked as read",
-      notificationType = "TaskDeadline",
-      priority = "High",
-      isRead = false,
-      actionUrl = None,
-      createdAt = ZonedDateTime.now(),
-      readAt = None,
-    )
+    val notification = tm
+      .repositories
+      .sql
+      .AnalyticsData
+      .DashboardNotificationData(
+        id = notificationId,
+        userId = userId,
+        title = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("Test Read Notification"),
+        message = "This notification will be marked as read",
+        notificationType =
+          eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("TaskDeadline"),
+        priority = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("High"),
+        isRead = false,
+        actionUrl = None,
+        createdAt = ZonedDateTime.now(),
+        validUntil = None,
+      )
 
     for {
       _ <- repo.insertDashboardNotification(notification)
@@ -183,21 +207,25 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("insertProductivityInsight creates insight") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
 
-    val insight = ProductivityInsightData(
-      id = java.util.UUID.randomUUID(),
-      userId = userId,
-      category = "Productivity",
-      title = "Peak Performance Hours",
-      description = "You are most productive between 10-12 AM",
-      actionable = true,
-      priority = "Medium",
-      metadata = io.circe.Json.obj(),
-      validUntil = Some(ZonedDateTime.now().plusDays(7)),
-      isRead = false,
-      createdAt = ZonedDateTime.now(),
-    )
+    val insight = tm
+      .repositories
+      .sql
+      .AnalyticsData
+      .ProductivityInsightData(
+        id = java.util.UUID.randomUUID(),
+        userId = userId,
+        category = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("Productivity"),
+        title = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("Peak Performance Hours"),
+        description = "You are most productive between 10-12 AM",
+        actionable = true,
+        priority = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("Medium"),
+        metadata = "{}",
+        validUntil = Some(ZonedDateTime.now().plusDays(7)),
+        isRead = false,
+        createdAt = ZonedDateTime.now(),
+      )
 
     for {
       _ <- repo.insertProductivityInsight(insight)
@@ -207,7 +235,7 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("getProductivityScore returns valid score") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
 
     for {
       score <- repo.getProductivityScore(userId)
@@ -216,7 +244,7 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("getCurrentWorkSession returns session when user is working") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
 
     for {
       result <- repo.getCurrentWorkSession(userId)
@@ -225,7 +253,7 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("getRunningTimeEntries returns active entries") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
 
     for {
       result <- repo.getRunningTimeEntries(userId)
@@ -242,7 +270,7 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("getWeekStats returns weekly productivity data") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
     val weekStart = LocalDate.now().minusDays(LocalDate.now().getDayOfWeek.getValue.toLong - 1)
 
     for {
@@ -252,7 +280,7 @@ object AnalyticsRepositorySpec extends DBSuite with Generators {
 
   test("getUserProductivityRanking returns ranking data") { implicit session =>
     val repo = AnalyticsRepository.make[IO]
-    val userId = data.users.user1.id
+    val userId = data.people.person1.id
 
     for {
       result <- repo.getUserProductivityRanking(userId)

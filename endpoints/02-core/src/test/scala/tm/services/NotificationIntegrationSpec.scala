@@ -12,47 +12,48 @@ import _root_.tm.repositories.NotificationsRepository
 import _root_.tm.repositories.UsersRepository
 import _root_.tm.services.notification.providers.EmailNotificationProvider
 import _root_.tm.services.notification.providers.SmsNotificationProvider
-import _root_.tm.support.database.DatabaseResource
-import _root_.tm.support.database.DatabaseSuite
 import _root_.tm.utils.ID
 import cats.effect.IO
+import cats.effect.Resource
 import cats.implicits._
+import skunk.Session
+import weaver.Expectations
 import weaver._
 
-object NotificationIntegrationSpec extends DatabaseSuite {
-  override type Res = DatabaseResource[IO]
+import tm.database.DBSuite
+
+object NotificationIntegrationSpec extends DBSuite {
+  override def schemaName: String = "public"
+  override def beforeAll(implicit session: Resource[IO, Session[IO]]): IO[Unit] = IO.unit
 
   // Mock users repository for testing
   def mockUsersRepo: UsersRepository[IO] = new UsersRepository[IO] {
-    override def findById(id: PersonId): IO[Option[tm.domain.corporate.User]] = {
-      val mockUser = tm
+    override def findById(id: PersonId): IO[Option[_root_.tm.domain.corporate.User]] = {
+      val mockUser = _root_
+        .tm
         .domain
         .corporate
         .User(
           id = id,
-          username = "testuser",
-          email = "test@example.com",
-          phone = Some("+1234567890"),
-          firstName = "Test",
-          lastName = "User",
-          role = tm.domain.corporate.UserRole.Employee,
-          department = Some("Engineering"),
-          position = Some("Software Developer"),
-          isActive = true,
           createdAt = ZonedDateTime.now(),
-          updatedAt = ZonedDateTime.now(),
+          role = _root_.tm.domain.enums.Role.Employee,
+          phone = eu.timepit.refined.api.Refined.unsafeApply("+123456789012"),
+          assetId = None,
+          corporateId = _root_.tm.domain.CorporateId(UUID.randomUUID()),
+          password = eu.timepit.refined.types.string.NonEmptyString.unsafeFrom("test123"),
         )
       IO.pure(Some(mockUser))
     }
 
     // Other methods not needed for this test
-    override def create(user: tm.domain.corporate.User): IO[Unit] = IO.unit
-    override def update(user: tm.domain.corporate.User): IO[Unit] = IO.unit
+    override def create(user: _root_.tm.domain.corporate.User): IO[Unit] = IO.unit
+    override def update(user: _root_.tm.domain.corporate.User): IO[Unit] = IO.unit
     override def delete(id: PersonId): IO[Unit] = IO.unit
-    override def findByUsername(username: String): IO[Option[tm.domain.corporate.User]] =
+    override def findByUsername(username: String): IO[Option[_root_.tm.domain.corporate.User]] =
       IO.pure(None)
-    override def findByEmail(email: String): IO[Option[tm.domain.corporate.User]] = IO.pure(None)
-    override def list(limit: Int, offset: Int): IO[List[tm.domain.corporate.User]] =
+    override def findByEmail(email: String): IO[Option[_root_.tm.domain.corporate.User]] =
+      IO.pure(None)
+    override def list(limit: Int, offset: Int): IO[List[_root_.tm.domain.corporate.User]] =
       IO.pure(List.empty)
   }
 
@@ -98,9 +99,9 @@ object NotificationIntegrationSpec extends DatabaseSuite {
       healthyMethods = methods
   }
 
-  test("end-to-end notification creation and delivery") { res =>
+  test("end-to-end notification creation and delivery") { implicit session =>
     for {
-      notificationsRepo <- IO(NotificationsRepository.make[IO](res.database))
+      notificationsRepo <- IO(NotificationsRepository.make[IO])
       usersRepo = mockUsersRepo
       deliveryProvider = new MockDeliveryProvider()
       service = NotificationService.make[IO](notificationsRepo, usersRepo, deliveryProvider)
@@ -138,9 +139,9 @@ object NotificationIntegrationSpec extends DatabaseSuite {
       expect(deliveryAttempts.exists(_._2 == DeliveryMethod.InApp))
   }
 
-  test("notification preferences filtering") { res =>
+  test("notification preferences filtering") { implicit session =>
     for {
-      notificationsRepo <- IO(NotificationsRepository.make[IO](res.database))
+      notificationsRepo <- IO(NotificationsRepository.make[IO])
       usersRepo = mockUsersRepo
       deliveryProvider = new MockDeliveryProvider()
       service = NotificationService.make[IO](notificationsRepo, usersRepo, deliveryProvider)
@@ -177,9 +178,9 @@ object NotificationIntegrationSpec extends DatabaseSuite {
       expect(deliveryAttempts.exists(_._2 == DeliveryMethod.SMS))
   }
 
-  test("quiet hours filtering") { res =>
+  test("quiet hours filtering") { implicit session =>
     for {
-      notificationsRepo <- IO(NotificationsRepository.make[IO](res.database))
+      notificationsRepo <- IO(NotificationsRepository.make[IO])
       usersRepo = mockUsersRepo
       deliveryProvider = new MockDeliveryProvider()
       service = NotificationService.make[IO](notificationsRepo, usersRepo, deliveryProvider)
@@ -190,6 +191,8 @@ object NotificationIntegrationSpec extends DatabaseSuite {
       quietHours = QuietHours(
         startTime = LocalTime.of(22, 0), // 10 PM
         endTime = LocalTime.of(8, 0), // 8 AM
+        timeZone = "UTC",
+        weekendsOnly = false,
         enabled = true,
       )
 
@@ -219,9 +222,9 @@ object NotificationIntegrationSpec extends DatabaseSuite {
   // Note: Whether push/SMS are filtered depends on the current time during test execution
   }
 
-  test("bulk notification delivery") { res =>
+  test("bulk notification delivery") { implicit session =>
     for {
-      notificationsRepo <- IO(NotificationsRepository.make[IO](res.database))
+      notificationsRepo <- IO(NotificationsRepository.make[IO])
       usersRepo = mockUsersRepo
       deliveryProvider = new MockDeliveryProvider()
       service = NotificationService.make[IO](notificationsRepo, usersRepo, deliveryProvider)
@@ -256,9 +259,9 @@ object NotificationIntegrationSpec extends DatabaseSuite {
       expect(deliveryAttempts.forall(_._2 == DeliveryMethod.InApp))
   }
 
-  test("notification type preferences") { res =>
+  test("notification type preferences") { implicit session =>
     for {
-      notificationsRepo <- IO(NotificationsRepository.make[IO](res.database))
+      notificationsRepo <- IO(NotificationsRepository.make[IO])
       usersRepo = mockUsersRepo
       deliveryProvider = new MockDeliveryProvider()
       service = NotificationService.make[IO](notificationsRepo, usersRepo, deliveryProvider)
@@ -307,9 +310,9 @@ object NotificationIntegrationSpec extends DatabaseSuite {
       expect(!deliveryAttempts.exists(_._1 == projectNotification.id)) // Project update should be filtered
   }
 
-  test("delivery failure handling and retry") { res =>
+  test("delivery failure handling and retry") { implicit session =>
     for {
-      notificationsRepo <- IO(NotificationsRepository.make[IO](res.database))
+      notificationsRepo <- IO(NotificationsRepository.make[IO])
       usersRepo = mockUsersRepo
       deliveryProvider = new MockDeliveryProvider()
       service = NotificationService.make[IO](notificationsRepo, usersRepo, deliveryProvider)
@@ -344,9 +347,9 @@ object NotificationIntegrationSpec extends DatabaseSuite {
       expect(retriedCount >= 0) // Some failures might be retried
   }
 
-  test("scheduled notification processing") { res =>
+  test("scheduled notification processing") { implicit session =>
     for {
-      notificationsRepo <- IO(NotificationsRepository.make[IO](res.database))
+      notificationsRepo <- IO(NotificationsRepository.make[IO])
       usersRepo = mockUsersRepo
       deliveryProvider = new MockDeliveryProvider()
       service = NotificationService.make[IO](notificationsRepo, usersRepo, deliveryProvider)
@@ -387,9 +390,9 @@ object NotificationIntegrationSpec extends DatabaseSuite {
       expect(deliveryAttempts.exists(_._1 == pastScheduled.id)) // Past notification should be processed
   }
 
-  test("notification statistics accuracy") { res =>
+  test("notification statistics accuracy") { implicit session =>
     for {
-      notificationsRepo <- IO(NotificationsRepository.make[IO](res.database))
+      notificationsRepo <- IO(NotificationsRepository.make[IO])
       usersRepo = mockUsersRepo
       deliveryProvider = new MockDeliveryProvider()
       service = NotificationService.make[IO](notificationsRepo, usersRepo, deliveryProvider)
@@ -427,9 +430,9 @@ object NotificationIntegrationSpec extends DatabaseSuite {
       expect(stats.todayCount >= 5) // All created today
   }
 
-  test("notification search functionality") { res =>
+  test("notification search functionality") { implicit session =>
     for {
-      notificationsRepo <- IO(NotificationsRepository.make[IO](res.database))
+      notificationsRepo <- IO(NotificationsRepository.make[IO])
       usersRepo = mockUsersRepo
       deliveryProvider = new MockDeliveryProvider()
       service = NotificationService.make[IO](notificationsRepo, usersRepo, deliveryProvider)

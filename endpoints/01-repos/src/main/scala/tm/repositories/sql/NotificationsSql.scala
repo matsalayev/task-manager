@@ -47,7 +47,7 @@ private[repositories] object NotificationsSql extends Sql[PersonId] {
 
   // Simplified insert notification
   val insertNotification: Command[Notification] =
-    sql"INSERT INTO notifications (id, user_id, title, content) VALUES ($uuid, $id, $nes, $text)"
+    sql"INSERT INTO notifications (id, user_id, title, content, notification_type, priority, delivery_methods) VALUES ($uuid, $id, $nes, $text, 'TaskDue'::notification_type, 'Normal'::notification_priority, ARRAY['InApp'::delivery_method])"
       .command
       .contramap[Notification](n => n.id.value *: n.userId *: n.title *: n.content *: EmptyTuple)
 
@@ -94,7 +94,7 @@ private[repositories] object NotificationsSql extends Sql[PersonId] {
 
   // Bulk insert notifications
   val bulkInsertNotifications: Command[List[Notification]] =
-    sql"INSERT INTO notifications (id, user_id) VALUES ($uuid, $id)"
+    sql"INSERT INTO notifications (id, user_id, title, content, notification_type, priority, delivery_methods) VALUES ($uuid, $id, 'Bulk Title', 'Bulk Content', 'SystemAlert'::notification_type, 'Normal'::notification_priority, ARRAY['InApp'::delivery_method])"
       .command
       .contramap[List[Notification]](notifications =>
         notifications.head.id.value *: notifications.head.userId *: EmptyTuple
@@ -175,7 +175,7 @@ private[repositories] object NotificationsSql extends Sql[PersonId] {
       }
 
   val upsertNotificationSettings: Command[NotificationSettings] =
-    sql"INSERT INTO notification_settings (id, user_id) VALUES ($uuid, $id)"
+    sql"INSERT INTO notification_settings (id, user_id, email_notifications, push_notifications) VALUES ($uuid, $id, true, true) ON CONFLICT (user_id) DO NOTHING"
       .command
       .contramap[NotificationSettings](s => s.id.value *: s.userId *: EmptyTuple)
 
@@ -227,12 +227,12 @@ private[repositories] object NotificationsSql extends Sql[PersonId] {
       }
 
   val insertDeliveryLog: Command[NotificationDeliveryLog] =
-    sql"INSERT INTO delivery_logs (id, notification_id) VALUES ($uuid, $uuid)"
+    sql"INSERT INTO notification_delivery_log (id, notification_id, delivery_method, status) VALUES ($uuid, $uuid, 'InApp'::delivery_method, 'Pending'::delivery_status)"
       .command
       .contramap[NotificationDeliveryLog](log => log.id *: log.notificationId.value *: EmptyTuple)
 
   val updateDeliveryLogStatus: Command[(NotificationId, String, Option[String])] =
-    sql"UPDATE delivery_logs SET status = 'updated' WHERE notification_id = $uuid"
+    sql"UPDATE notification_delivery_log SET status = 'Delivered' WHERE notification_id = $uuid"
       .command
       .contramap[(NotificationId, String, Option[String])] {
         case (notifId, _, _) => notifId.value

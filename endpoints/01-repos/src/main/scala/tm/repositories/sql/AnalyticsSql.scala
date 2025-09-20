@@ -53,15 +53,15 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
   val getTodayStats: Query[PersonId, DailyProductivityData] =
     sql"""
       SELECT user_id, current_date as report_date,
-             COALESCE(SUM(CASE WHEN NOT is_break THEN duration_minutes ELSE 0 END), 0) as productive_minutes,
-             COALESCE(SUM(CASE WHEN is_break THEN duration_minutes ELSE 0 END), 0) as break_minutes,
+             COALESCE(SUM(CASE WHEN NOT is_break THEN duration ELSE 0 END), 0) as productive_minutes,
+             COALESCE(SUM(CASE WHEN is_break THEN duration ELSE 0 END), 0) as break_minutes,
              COUNT(DISTINCT task_id) FILTER (WHERE task_id IS NOT NULL) as tasks_worked,
-             COALESCE(SUM(duration_minutes), 0) as total_minutes,
+             COALESCE(SUM(duration), 0) as total_minutes,
              COUNT(*) as session_count,
              MIN(start_time) as first_activity,
              MAX(COALESCE(end_time, start_time)) as last_activity,
-             CASE WHEN SUM(duration_minutes) > 0
-                  THEN ROUND(SUM(CASE WHEN NOT is_break THEN duration_minutes ELSE 0 END) * 100.0 / SUM(duration_minutes), 2)
+             CASE WHEN SUM(duration) > 0
+                  THEN ROUND(SUM(CASE WHEN NOT is_break THEN duration ELSE 0 END) * 100.0 / SUM(duration), 2)
                   ELSE 0 END as efficiency,
              NULL::text as work_mode
       FROM time_entries
@@ -76,7 +76,7 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
       SELECT id, user_id, daily_hours_goal, weekly_hours_goal, monthly_tasks_goal,
              productivity_goal, streak_goal, created_at, updated_at
       FROM user_goals
-      WHERE user_id = $id AND deleted_at IS NULL
+      WHERE user_id = $id
       LIMIT 1
     """
       .query(
@@ -121,13 +121,13 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
   val getRecentTasks: Query[(PersonId, Int), RecentTaskData] =
     sql"""
       SELECT DISTINCT t.id, t.name, p.name as project_name, t.status::text,
-             COALESCE(SUM(te.duration_minutes), 0) as time_spent,
+             COALESCE(SUM(te.duration), 0) as time_spent,
              MAX(te.end_time) as last_worked
       FROM tasks t
       JOIN projects p ON t.project_id = p.id
       LEFT JOIN time_entries te ON te.task_id = t.id
-      JOIN task_assignees ta ON ta.task_id = t.id
-      WHERE ta.assignee_id = $id AND t.deleted_at IS NULL
+      LEFT JOIN assignees ta ON ta.task_id = t.id
+      WHERE ta.user_id = $id
       GROUP BY t.id, t.name, p.name, t.status
       ORDER BY last_worked DESC NULLS LAST
       LIMIT $int4
@@ -174,7 +174,7 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
   // Get running time entries
   val getRunningTimeEntries: Query[PersonId, TimeEntryData] =
     sql"""
-      SELECT id, user_id, task_id, work_session_id, start_time, end_time, duration_minutes,
+      SELECT id, user_id, task_id, work_session_id, start_time, end_time, duration,
              description, is_running, is_break, break_reason::text, is_manual, created_at, updated_at
       FROM time_entries
       WHERE user_id = $id AND is_running = true
@@ -213,7 +213,7 @@ private[repositories] object AnalyticsSql extends Sql[PersonId] {
                ELSE 0
              END as productivity_score
       FROM time_entries
-      WHERE user_id = $id AND DATE(start_time) >= CURRENT_DATE - INTERVAL '30 days'
+      WHERE user_id = $id AND start_time >= CURRENT_DATE - INTERVAL '30 days'
     """.query(numeric.map(_.toDouble))
 
   // Simple placeholder queries for other methods to compile

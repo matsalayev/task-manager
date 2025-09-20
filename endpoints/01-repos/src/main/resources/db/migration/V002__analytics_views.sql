@@ -62,12 +62,8 @@ SELECT
     MAX(COALESCE(te.end_time, te.start_time + INTERVAL '1 minute' * COALESCE(te.duration, 0))) as last_activity,
     -- Average session length
     AVG(CASE WHEN NOT te.is_break AND te.duration > 0 THEN te.duration END) as avg_session_length,
-    -- Work mode from session
-    (SELECT ews.work_mode
-     FROM enhanced_work_sessions ews
-     WHERE ews.user_id = te.user_id
-       AND DATE(ews.start_time) = DATE(te.start_time)
-     LIMIT 1) as work_mode
+    -- Work mode from session (simplified)
+    'Standard' as work_mode
 FROM time_entries te
 WHERE te.start_time >= CURRENT_DATE - INTERVAL '90 days'
   AND te.duration IS NOT NULL

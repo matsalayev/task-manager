@@ -245,10 +245,11 @@ object NotificationRoutesSpec extends SimpleIOSuite {
     override def isUserInQuietHours(userId: PersonId): IO[Boolean] = IO.pure(false)
   }
 
-  def testUser: AuthedUser = AuthedUser(
+  def testUser: AuthedUser = AuthedUser.User(
     id = PersonId(UUID.randomUUID()),
-    username = "testuser",
-    role = tm.domain.corporate.UserRole.Employee,
+    corporateId = tm.domain.CorporateId(UUID.randomUUID()),
+    role = tm.domain.enums.Role.Employee,
+    phone = eu.timepit.refined.refineV.unsafeFrom("+123456789012"),
   )
 
   test("GET /notifications - get user notifications") {
@@ -273,7 +274,8 @@ object NotificationRoutesSpec extends SimpleIOSuite {
           .withAuthenticatedUser(testUser)
       )
 
-      response <- app.run(request)
+      authedRequest = AuthedRequest(testUser, request)
+      response <- app.run(authedRequest)
       body <- response.as[String]
 
     } yield expect(response.status == Status.Ok) and
@@ -314,7 +316,8 @@ object NotificationRoutesSpec extends SimpleIOSuite {
           .withAuthenticatedUser(testUser)
       )
 
-      response <- app.run(request)
+      authedRequest = AuthedRequest(testUser, request)
+      response <- app.run(authedRequest)
       notifications <- response.as[List[Notification]]
 
     } yield expect(response.status == Status.Ok) and
@@ -344,7 +347,8 @@ object NotificationRoutesSpec extends SimpleIOSuite {
           .withAuthenticatedUser(testUser)
       )
 
-      response <- app.run(request)
+      authedRequest = AuthedRequest(testUser, request)
+      response <- app.run(authedRequest)
       body <- response.as[Map[String, Long]]
 
     } yield expect(response.status == Status.Ok) and
@@ -376,7 +380,8 @@ object NotificationRoutesSpec extends SimpleIOSuite {
           .withAuthenticatedUser(testUser)
       )
 
-      response <- app.run(request)
+      authedRequest = AuthedRequest(testUser, request)
+      response <- app.run(authedRequest)
       body <- response.as[Map[String, Boolean]]
 
       // Check unread count after marking as read
@@ -419,7 +424,8 @@ object NotificationRoutesSpec extends SimpleIOSuite {
           .withAuthenticatedUser(testUser)
       )
 
-      response <- app.run(request)
+      authedRequest = AuthedRequest(testUser, request)
+      response <- app.run(authedRequest)
       body <- response.as[Map[String, Boolean]]
 
       // Check unread count after marking all as read
@@ -452,7 +458,8 @@ object NotificationRoutesSpec extends SimpleIOSuite {
           .withAuthenticatedUser(testUser)
       )
 
-      response <- app.run(request)
+      authedRequest = AuthedRequest(testUser, request)
+      response <- app.run(authedRequest)
       body <- response.as[Map[String, Boolean]]
 
       // Check that notification was deleted
@@ -484,7 +491,8 @@ object NotificationRoutesSpec extends SimpleIOSuite {
           .withEntity(createRequest.asJson)
       )
 
-      response <- app.run(request)
+      authedRequest = AuthedRequest(testUser, request)
+      response <- app.run(authedRequest)
       notification <- response.as[Notification]
 
     } yield expect(response.status == Status.Created) and
@@ -504,7 +512,8 @@ object NotificationRoutesSpec extends SimpleIOSuite {
           .withAuthenticatedUser(testUser)
       )
 
-      response <- app.run(request)
+      authedRequest = AuthedRequest(testUser, request)
+      response <- app.run(authedRequest)
       settings <- response.as[NotificationSettings]
 
     } yield expect(response.status == Status.Ok) and
@@ -531,7 +540,8 @@ object NotificationRoutesSpec extends SimpleIOSuite {
           .withEntity(updateRequest.asJson)
       )
 
-      response <- app.run(request)
+      authedRequest = AuthedRequest(testUser, request)
+      response <- app.run(authedRequest)
       settings <- response.as[NotificationSettings]
 
     } yield expect(response.status == Status.Ok) and
@@ -573,7 +583,8 @@ object NotificationRoutesSpec extends SimpleIOSuite {
           .withAuthenticatedUser(testUser)
       )
 
-      response <- app.run(request)
+      authedRequest = AuthedRequest(testUser, request)
+      response <- app.run(authedRequest)
       body <- response.as[Map[String, Any]]
 
     } yield expect(response.status == Status.Ok) and {

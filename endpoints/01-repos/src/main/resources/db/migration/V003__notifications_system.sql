@@ -79,7 +79,7 @@ CREATE TABLE notifications (
     related_entity_type entity_type,
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
     priority notification_priority NOT NULL DEFAULT 'Normal',
-    delivery_methods delivery_method[] NOT NULL DEFAULT ARRAY['InApp'],
+    delivery_methods delivery_method[] NOT NULL DEFAULT ARRAY['InApp'::delivery_method],
     metadata JSONB DEFAULT '{}',
     scheduled_at TIMESTAMP WITH TIME ZONE,
     sent_at TIMESTAMP WITH TIME ZONE,
@@ -280,17 +280,17 @@ $$ LANGUAGE plpgsql;
 
 -- Default notification templates
 INSERT INTO notification_templates (name, notification_type, title_template, content_template, supported_delivery_methods, default_priority, variables) VALUES
-('task_assigned', 'TaskAssigned', 'New Task Assigned: {{task_name}}', 'You have been assigned a new task "{{task_name}}" in project {{project_name}}. Due date: {{due_date}}', ARRAY['InApp', 'Email', 'Push', 'Telegram'], 'Normal', '[{"name": "task_name", "description": "Name of the task", "required": true}, {"name": "project_name", "description": "Name of the project", "required": true}, {"name": "due_date", "description": "Due date of the task", "required": false}]'),
+('task_assigned', 'TaskAssigned', 'New Task Assigned: {{task_name}}', 'You have been assigned a new task "{{task_name}}" in project {{project_name}}. Due date: {{due_date}}', ARRAY['InApp'::delivery_method, 'Email'::delivery_method, 'Push'::delivery_method, 'Telegram'::delivery_method], 'Normal', '[{"name": "task_name", "description": "Name of the task", "required": true}, {"name": "project_name", "description": "Name of the project", "required": true}, {"name": "due_date", "description": "Due date of the task", "required": false}]'),
 
-('task_due_soon', 'TaskDue', 'Task Due Tomorrow: {{task_name}}', 'Your task "{{task_name}}" is due tomorrow. Please make sure to complete it on time.', ARRAY['InApp', 'Email', 'Push'], 'High', '[{"name": "task_name", "description": "Name of the task", "required": true}]'),
+('task_due_soon', 'TaskDue', 'Task Due Tomorrow: {{task_name}}', 'Your task "{{task_name}}" is due tomorrow. Please make sure to complete it on time.', ARRAY['InApp'::delivery_method, 'Email'::delivery_method, 'Push'::delivery_method], 'High', '[{"name": "task_name", "description": "Name of the task", "required": true}]'),
 
-('task_overdue', 'TaskOverdue', 'Overdue Task: {{task_name}}', 'Your task "{{task_name}}" is now overdue. Please complete it as soon as possible.', ARRAY['InApp', 'Email', 'Push'], 'Critical', '[{"name": "task_name", "description": "Name of the task", "required": true}]'),
+('task_overdue', 'TaskOverdue', 'Overdue Task: {{task_name}}', 'Your task "{{task_name}}" is now overdue. Please complete it as soon as possible.', ARRAY['InApp'::delivery_method, 'Email'::delivery_method, 'Push'::delivery_method], 'Critical', '[{"name": "task_name", "description": "Name of the task", "required": true}]'),
 
-('project_update', 'ProjectUpdate', 'Project Update: {{project_name}}', 'There has been an update in project "{{project_name}}": {{update_description}}', ARRAY['InApp', 'Email'], 'Normal', '[{"name": "project_name", "description": "Name of the project", "required": true}, {"name": "update_description", "description": "Description of the update", "required": true}]'),
+('project_update', 'ProjectUpdate', 'Project Update: {{project_name}}', 'There has been an update in project "{{project_name}}": {{update_description}}', ARRAY['InApp'::delivery_method, 'Email'::delivery_method], 'Normal', '[{"name": "project_name", "description": "Name of the project", "required": true}, {"name": "update_description", "description": "Description of the update", "required": true}]'),
 
-('daily_goal_reached', 'DailyGoalReached', 'Daily Goal Achieved! 🎉', 'Congratulations! You have reached your daily work goal of {{goal_hours}} hours. Keep up the great work!', ARRAY['InApp', 'Push'], 'Normal', '[{"name": "goal_hours", "description": "Daily goal in hours", "required": true}]'),
+('daily_goal_reached', 'DailyGoalReached', 'Daily Goal Achieved! 🎉', 'Congratulations! You have reached your daily work goal of {{goal_hours}} hours. Keep up the great work!', ARRAY['InApp'::delivery_method, 'Push'::delivery_method], 'Normal', '[{"name": "goal_hours", "description": "Daily goal in hours", "required": true}]'),
 
-('productivity_insight', 'ProductivityInsight', 'Productivity Insight', '{{insight_message}}', ARRAY['InApp'], 'Low', '[{"name": "insight_message", "description": "The productivity insight message", "required": true}]');
+('productivity_insight', 'ProductivityInsight', 'Productivity Insight', '{{insight_message}}', ARRAY['InApp'::delivery_method], 'Low', '[{"name": "insight_message", "description": "The productivity insight message", "required": true}]');
 
 -- Schedule periodic cleanup (if pg_cron is available)
 -- SELECT cron.schedule('cleanup-expired-notifications', '0 2 * * *', 'SELECT cleanup_expired_notifications();');
